@@ -107,7 +107,9 @@ export class VufForm<T extends Record<string, FieldConfig<any>>> {
     throw new Error('You have to implement the method gen!');
   }
 
+  /** 任意イベントハンドラを登録する */
   addEmit(eventName: string, handler: EmitFunction): void { this[KEY_EMITS][eventName] = handler; }
+  /** 任意イベントハンドラを解除する（存在しない場合は無視） */
   removeEmit(eventName: string): void { if (this[KEY_EMITS][eventName]) delete this[KEY_EMITS][eventName]; }
   /** 任意イベントの発火（未登録時は console.log で通知） */
   emit(eventName: string, ...args: any[]): any {
@@ -116,9 +118,13 @@ export class VufForm<T extends Record<string, FieldConfig<any>>> {
     return null;
   }
 
+  /** 内部の FieldObject を取得する（テスト/拡張向け） */
   getFieldObject<K extends keyof T>(key: K): FieldObject<any> { return this._fields[key as string]; }
+  /** フィールドの現在値を取得する（Signal の get を通す） */
   getFieldValue<K extends keyof T>(key: K): any { return this._fields[key as string].value[0](); }
+  /** フィールドの値を設定する（Signal の set を通す） */
   setFieldValue<K extends keyof T>(key: K, value: any): void { this._fields[key as string].value[1](value); }
+  /** フォームの一意キー（UI のキーなどに利用可） */
   getKey(): number { return this[KEY_RANDOM].value; }
 
   /**
@@ -210,6 +216,7 @@ export class VufForm<T extends Record<string, FieldConfig<any>>> {
     }
   }
 
+  /** 以降の変更でバリデーションを実行するフラグを有効化する */
   startValid(): void { this.$startValid[1](true); }
 
   /** 単一フィールドを検証し、エラー状態を反映する */

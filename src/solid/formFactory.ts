@@ -1,4 +1,4 @@
-import { VufForm, type EmitFunctions, type FieldConfig } from './vufSolid';
+import { VufForm, type EmitFunctions, type FieldConfig } from './mod';
 
 export type VufFormPublicMethods = Pick<VufForm<any>,
   'getFieldObject' | 'getFieldValue' | 'setFieldValue' | 'getKey' |

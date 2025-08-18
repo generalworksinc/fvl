@@ -201,7 +201,7 @@ export class VufForm<T extends Record<string, FieldObject<any>>> {
   }
 
   getJson(options: GetValueJsonOptions = {}): Record<string, any> {
-    // 旧 API 互換のエイリアス。実体は getValueJson。
+    // エイリアス。実体は getValueJson。
     return this.getValueJson(options);
   }
 
@@ -277,7 +277,7 @@ export class VufForm<T extends Record<string, FieldObject<any>>> {
 
   groupIsValid(fieldNames?: string[]): boolean {
     // 指定フィールド群（未指定なら全フィールド）を検証し、全体として有効かどうかを返す。
-    // ネスト（"parent.child"）指定にも対応（旧 vuf2.ts 互換）。
+    // ネスト（"parent.child"）指定にも対応
     this.startValid();
     const keys: string[] = fieldNames && fieldNames.length > 0
       ? fieldNames
@@ -307,7 +307,7 @@ export class VufForm<T extends Record<string, FieldObject<any>>> {
 
   isErrorField(fieldName: string): boolean {
     // 単一フィールドの検証を実行し、エラー有無を返却。
-    // 旧 vuf2.ts と同様に、ルール関数の取得・メッセージ差し替え・例外時の継続動作を踏襲する。
+    // ルール関数の取得・メッセージ差し替え・例外時の継続動作を踏襲する。
     if (!this.$startValid) return false;
     let hasError = false;
     const obj = (this._fields as unknown as FieldsMap)[fieldName];
