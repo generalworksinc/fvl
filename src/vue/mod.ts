@@ -103,7 +103,10 @@ export class VufForm<T extends Record<string, FieldObject<any>>> {
     }
     this[KEY_RANDOM] = { value: randomKey(), name: '$key' };
     this[KEY_EMITS] = options?.emits || {};
-    this._watch = options?.watchFn || (vueWatch as unknown as WatchFunction);
+    // Prefer injected watch, then globalThis.watch (for test env), then Vue's watch
+    this._watch =
+      options?.watchFn ||
+      (((globalThis as any).watch as WatchFunction | undefined) ?? (vueWatch as unknown as WatchFunction));
   }
 
   static gen(): VufForm<Record<string, FieldObject<any>>> {
