@@ -46,6 +46,76 @@ import { registerValidator, setMessages, setLocale } from "@generalworks/vuf";
   - main は保護ブランチ、マージ後に publish ジョブが実行される構成
   - リリースタグ作成時は GitHub Release を発行し、必要に応じて `dist/` を同梱
 
+## テスト実行（bun）
+
+- 単体実行（特定ファイルのみ）
+
+```bash
+bun test __tests__/vuf2.test.js
+```
+
+- 全テスト実行
+
+```bash
+bun test
+```
+
+- 監視モード（変更検知）
+
+```bash
+bun test --watch
+```
+
+## カバレッジ確認（bun）
+
+- 特定ファイルのカバレッジ
+
+```bash
+bun test --coverage __tests__/vuf2.test.js
+```
+
+- 全体カバレッジ
+
+```bash
+bun test --coverage
+```
+
+出力表の見方:
+- % Funcs: 関数カバレッジ
+- % Lines: 行カバレッジ
+- Uncovered Line #s: 未実行行の一覧（改善の手がかり）
+
+## i18n & Messages
+
+- ロケール別辞書の取り込み（サブパス）
+
+```ts
+import ja from "@generalworks/vuf/messages/ja";
+import en from "@generalworks/vuf/messages/en";
+```
+
+- ロケール切替 / 辞書登録・拡張
+
+```ts
+import { setLocale, setMessages, mergeMessages } from "@generalworks/vuf";
+
+// 既定ロケールの登録（必要に応じて）
+setMessages("ja", ja);
+setMessages("en", en);
+
+// 部分的な上書き（例: 表記ゆれの調整）
+mergeMessages("ja", {
+  required: "必須です。",
+});
+
+// 実行時にロケールを切替
+setLocale("ja");
+```
+
+- 補足
+  - バリデータ名とメッセージキーは1対1に対応（例: `required`, `maxLength`, `isEmail`）。
+  - 任意ロケールを追加する場合は `setMessages("xx", yourDict)` を呼び出し、`setLocale("xx")` で選択します。
+
 ## ビルド（tsup）について
 
 - 目的:
