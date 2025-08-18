@@ -15,14 +15,21 @@
     "solid-js": ">=1.8"
   },
   "peerDependenciesMeta": {
-    "vue": { "optional": true },
-    "solid-js": { "optional": true }
+    "vue": {
+      "optional": true
+    },
+    "solid-js": {
+      "optional": true
+    }
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
     "test": "bun test",
     "build": "tsup"
+  },
+  "devDependencies": {
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.2"
   }
 }
-
