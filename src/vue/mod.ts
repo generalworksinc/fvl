@@ -78,6 +78,20 @@ const randomKey = (() => {
   };
 })();
 
+// 内部で扱うフィールドマップ型（キーは動的）
+type FieldsMap = Record<string, FieldObject<any>>;
+
+// 値が VufForm インスタンスかどうかの型ガード
+function isVufFormInstance(value: unknown): value is VufForm<any> {
+  return value !== null && typeof value === 'object' && Object.getPrototypeOf(value as object) instanceof VufForm;
+}
+
+// コンストラクタが VufForm 由来かどうかの型ガード
+type VufFormCtor = { gen: () => VufForm<any>; prototype: unknown };
+function isVufFormConstructor(value: unknown): value is VufFormCtor {
+  return !!value && typeof (value as any).gen === 'function' && (value as any).prototype instanceof VufForm;
+}
+
 // ----------------------------
 // VufForm（Vue アダプタ）
 // ----------------------------
@@ -102,7 +116,7 @@ export class VufForm<T extends Record<string, FieldObject<any>>> {
         const obj = { ...(clonedModel as Record<string, FieldObject<any>>)[key] } as FieldObject;
         // バリデーション結果の初期化とフォーム参照の付与
         obj.validator = { error: false, message: '' };
-        obj[KEY_FORM] = this as any;
+        obj[KEY_FORM] = this as unknown as VufForm<any>;
         // id 未指定なら自動採番
         if (!obj.id) obj.id = key + '_' + randomKey();
         this._fields[key as keyof T] = obj as T[keyof T];
@@ -156,14 +170,14 @@ export class VufForm<T extends Record<string, FieldObject<any>>> {
         const k = formattedKey as keyof T;
         if (Object.prototype.hasOwnProperty.call(this._fields, formattedKey) && this._fields[k] !== undefined) {
           const thisField = this._fields[k] as unknown as FieldObject<any>;
-          if (value && thisField.type && (thisField.type as any).prototype instanceof VufForm) {
-            const vufFormInstance = (thisField.type as any).gen();
+          if (value && isVufFormConstructor(thisField.type)) {
+            const vufFormInstance = thisField.type.gen();
             vufFormInstance.setData(value);
             thisField.value = vufFormInstance;
-          } else if (value && Array.isArray(value) && thisField.type === Array && thisField.subType && (thisField.subType as any).prototype instanceof VufForm) {
+          } else if (value && Array.isArray(value) && thisField.type === Array && thisField.subType && isVufFormConstructor(thisField.subType)) {
             const elmArray: VufForm<any>[] = [];
             for (const elm of value) {
-              const vufFormInstance = (thisField.subType as any).gen();
+              const vufFormInstance = thisField.subType.gen();
               vufFormInstance.setData(elm);
               elmArray.push(vufFormInstance);
             }
@@ -228,7 +242,7 @@ export class VufForm<T extends Record<string, FieldObject<any>>> {
     for (const key of Object.keys(this._fields as Record<string, unknown>)) {
       if (!key.includes('$')) {
         const k = key as keyof T;
-        this._watch(this._fields[k], (next: any) => {
+        this._watch(this._fields[k], () => {
           if (isValidateImmediately || this.$startValid) this.isErrorField(key);
         });
       }
@@ -274,9 +288,10 @@ export class VufForm<T extends Record<string, FieldObject<any>>> {
       if (key.indexOf('.') >= 0) {
         try {
           const [parentKey, childKey] = key.split('.');
-          if (parentKey && (this._fields as any)[parentKey] && (this._fields as any)[parentKey].value) {
-            const nestedForm = (this._fields as any)[parentKey].value;
-            if (nestedForm && typeof nestedForm.isErrorField === 'function' && nestedForm.isErrorField(childKey)) {
+          const fields = this._fields as unknown as FieldsMap;
+          if (parentKey && fields[parentKey] && fields[parentKey].value) {
+            const nestedForm = fields[parentKey].value as unknown;
+            if (nestedForm && typeof (nestedForm as any).isErrorField === 'function' && (nestedForm as any).isErrorField(childKey)) {
               isValid = false;
             }
           }
@@ -295,7 +310,7 @@ export class VufForm<T extends Record<string, FieldObject<any>>> {
     // 旧 vuf2.ts と同様に、ルール関数の取得・メッセージ差し替え・例外時の継続動作を踏襲する。
     if (!this.$startValid) return false;
     let hasError = false;
-    const obj = (this._fields as any)[fieldName] as FieldObject;
+    const obj = (this._fields as unknown as FieldsMap)[fieldName];
     if (!obj) {
       console.error(`isErrorField error: ${fieldName} is not found in _fields`);
       return false;
@@ -326,7 +341,7 @@ export class VufForm<T extends Record<string, FieldObject<any>>> {
         validMessage = `Validation error: ${validStr}`;
       }
       try {
-        if (validFunc && !validFunc(obj.value, this as any, ...params)) {
+        if (validFunc && !validFunc(obj.value, this as unknown as VufForm<any>, ...params)) {
           obj.validator.message = validMessage;
           hasError = true;
         }
@@ -338,7 +353,7 @@ export class VufForm<T extends Record<string, FieldObject<any>>> {
     }
     obj.validator.error = hasError;
     if (!hasError) obj.validator.message = '';
-    (obj as any).$startValid = true;
+    obj.$startValid = true;
     return obj.validator.error;
   }
 }
@@ -356,8 +371,8 @@ const formatValue = (obj: FieldObject<any>, value: any): any => {
       newArray.push(formatValue({} as FieldObject<any>, currentValue));
       return newArray;
     }, [] as any[]);
-  } else if (value !== null && value !== undefined && Object.getPrototypeOf(value) instanceof VufForm) {
-    retVal = (value as any as VufForm<any>).getJson();
+  } else if (isVufFormInstance(value)) {
+    retVal = value.getJson();
   } else if (obj.type === Number) {
     retVal = Number(value);
     if (Number.isNaN(retVal)) {
