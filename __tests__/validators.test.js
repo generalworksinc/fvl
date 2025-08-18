@@ -139,4 +139,24 @@ describe('validators', () => {
       expect(validators.isEmail('', mockForm)).toBe(false);
     });
   });
+
+  // 例外経路のカバレッジ（catch ブロック）
+  describe('例外経路', () => {
+    test('integer: Number(Symbol) で例外→false', () => {
+      expect(validators.integer(Symbol('x'), mockForm)).toBe(false);
+    });
+
+    test('positiveInteger: Number(Symbol) で例外→console.log後にfalse', () => {
+      const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+      expect(validators.positiveInteger(Symbol('y'), mockForm)).toBe(false);
+      expect(logSpy).toHaveBeenCalled();
+      logSpy.mockRestore();
+    });
+  });
+
+  describe('sameAs', () => {
+    test('未実装のため例外をスローする', () => {
+      expect(() => validators.sameAs()).toThrow();
+    });
+  });
 }); 

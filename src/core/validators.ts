@@ -31,7 +31,9 @@ const validators: Record<string, ValidatorFunction> = {
   positiveInteger: (value: any): boolean => {
     try {
       return v8n().integer().positive().test(Number(value));
-    } catch {
+    } catch (ex) {
+      // 旧実装（clinicit_front/libs/vuf/validators.ts）互換: 例外時にログを出力
+      console.log('exception: ex:', ex);
       return false;
     }
   },
