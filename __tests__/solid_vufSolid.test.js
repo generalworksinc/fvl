@@ -10,7 +10,7 @@ global.createSignal = (initial) => {
   return [get, set];
 };
 
-import { VufForm, required, maxLength, isEmail, anyCondition, field } from '../solidjs/vufSolid.ts';
+import { VufForm, required, maxLength, isEmail, anyCondition, field } from '../src/solid/mod.ts';
 
 describe('VufForm (solidjs/vufSolid.ts)', () => {
   function makeForm(emits = {}) {

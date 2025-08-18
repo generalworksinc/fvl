@@ -10,8 +10,8 @@ global.createSignal = (initial) => {
   return [get, set];
 };
 
-import { createForm } from '../solidjs/formFactory.ts';
-import { required } from '../solidjs/vufSolid.ts';
+import { createForm } from '../src/solid/formFactory.ts';
+import { required } from '../src/solid/mod.ts';
 
 describe('createForm (solidjs/formFactory.ts)', () => {
   beforeEach(() => { effects.clear(); });
