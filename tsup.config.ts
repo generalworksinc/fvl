@@ -28,6 +28,9 @@ export default defineConfig({
 	target: 'es2022',
 	splitting: false,
 	minify: false,
+	// Do not bundle framework peers. Keep them external to avoid forcing
+	// consumers to install unused frameworks (e.g. Solid users shouldn't get Vue).
+    external: ['vue', 'solid-js'],
 });
 
 
