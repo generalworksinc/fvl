@@ -8,8 +8,8 @@ import {
 // ----------------------------
 // 型定義（Vue アダプタ専用）
 // ----------------------------
-// 旧 vuf2.ts と同等の概念を、Vue3 向けのアダプタ層で利用するための型定義。
-// コアはフレームワーク非依存だが、ここでは watch の扱いなどを含め Vue 寄りの表現を用いる。
+// フォーム抽象（FieldObject, VufForm）を Vue 向けアダプタ層で利用するための型定義。
+// コアはフレームワーク非依存だが、ここでは watch の扱いなど Vue 寄りの表現を用いる。
 
 export type ValidateList = Array<string | [string, ...any[]]>;
 
@@ -82,8 +82,8 @@ const randomKey = (() => {
 // VufForm（Vue アダプタ）
 // ----------------------------
 // 各フィールド（FieldObject）を束ねるフォームクラス。
-// Object.defineProperty により form.fieldName で value にアクセスできるようにする。
-// 旧 vuf2.ts と等価な挙動を保ちつつ、Vue の watch を差し替え可能にしている。
+// Object.defineProperty により form.fieldName で value に直接アクセスできるようにする。
+// Vue の watch を依存性注入で差し替え可能。
 
 export class VufForm<T extends Record<string, FieldObject<any>>> {
   private _fields: T;
@@ -95,24 +95,25 @@ export class VufForm<T extends Record<string, FieldObject<any>>> {
 
   constructor(model: T, options?: { emits?: EmitFunctions; watchFn?: WatchFunction }) {
     // モデルのシャローコピーから内部フィールドを初期化
-    const clonedModel = { ...model } as T;
+    const clonedModel = { ...model } as Record<string, FieldObject<any>>;
     this._fields = {} as T;
     for (const key in clonedModel) {
-      if (Object.prototype.hasOwnProperty.call(clonedModel, key) && clonedModel[key] !== undefined) {
-        const obj = { ...(clonedModel as any)[key] } as FieldObject;
+      if (Object.prototype.hasOwnProperty.call(clonedModel, key) && clonedModel[key as keyof typeof clonedModel] !== undefined) {
+        const obj = { ...(clonedModel as Record<string, FieldObject<any>>)[key] } as FieldObject;
         // バリデーション結果の初期化とフォーム参照の付与
         obj.validator = { error: false, message: '' };
         obj[KEY_FORM] = this as any;
         // id 未指定なら自動採番
         if (!obj.id) obj.id = key + '_' + randomKey();
-        (this._fields as any)[key] = obj;
+        this._fields[key as keyof T] = obj as T[keyof T];
+        const k = key as keyof T;
         Object.defineProperty(this, key, {
           enumerable: true,
           configurable: false,
-          get: () => (this._fields as any)[key]?.value,
+          get: () => this._fields[k]?.value,
           set: (newValue: any) => {
-            if ((this._fields as any)[key]) {
-              (this._fields as any)[key].value = newValue;
+            if (this._fields[k]) {
+              (this._fields[k] as FieldObject<any>).value = newValue;
             } else {
               console.error(`setFieldValue error: ${key} is not found in _fields`);
             }
@@ -152,8 +153,9 @@ export class VufForm<T extends Record<string, FieldObject<any>>> {
     for (const key in obj) {
       const formattedKey = headLower(key);
       let setFunc: Function | undefined = (value: any) => {
-        if (Object.prototype.hasOwnProperty.call(this._fields, formattedKey) && (this._fields as any)[formattedKey] !== undefined) {
-          const thisField = (this._fields as any)[formattedKey] as FieldObject;
+        const k = formattedKey as keyof T;
+        if (Object.prototype.hasOwnProperty.call(this._fields, formattedKey) && this._fields[k] !== undefined) {
+          const thisField = this._fields[k] as unknown as FieldObject<any>;
           if (value && thisField.type && (thisField.type as any).prototype instanceof VufForm) {
             const vufFormInstance = (thisField.type as any).gen();
             vufFormInstance.setData(value);
@@ -204,17 +206,18 @@ export class VufForm<T extends Record<string, FieldObject<any>>> {
     let targetKeys: string[];
     if (keys && keys.length > 0) targetKeys = keys;
     else {
-      targetKeys = Object.keys(this._fields as any);
+      targetKeys = Object.keys(this._fields as Record<string, unknown>);
       if (exceptKeys && exceptKeys.length > 0) targetKeys = targetKeys.filter(key => exceptKeys.indexOf(key) < 0);
     }
     const filteredObj: Record<string, FieldObject<any>> = {};
     targetKeys.forEach(key => {
-      if ((this._fields as any)[key]) filteredObj[key] = (this._fields as any)[key];
+      const k = key as keyof T;
+      if (this._fields[k]) filteredObj[key] = this._fields[k] as unknown as FieldObject<any>;
     });
     const result = extractData(filteredObj, isIgnoreBlank);
     if (format) {
       const formattedResult: Record<string, any> = {};
-      for (const key in result) formattedResult[format(key)] = (result as any)[key];
+      for (const key in result) formattedResult[format(key)] = result[key];
       return formattedResult;
     }
     return result;
@@ -222,9 +225,10 @@ export class VufForm<T extends Record<string, FieldObject<any>>> {
 
   validateWatch(isValidateImmediately = false): void {
     // 各フィールドの変更を watch で監視し、即時または startValid 後に検証を呼び出す。
-    for (const key in this._fields as any) {
+    for (const key of Object.keys(this._fields as Record<string, unknown>)) {
       if (!key.includes('$')) {
-        this._watch((this._fields as any)[key], (next: any) => {
+        const k = key as keyof T;
+        this._watch(this._fields[k], (next: any) => {
           if (isValidateImmediately || this.$startValid) this.isErrorField(key);
         });
       }
@@ -236,18 +240,18 @@ export class VufForm<T extends Record<string, FieldObject<any>>> {
     this.$startValid = true;
   }
 
-  // 旧 vuf2.ts 互換API
+  // 互換 API（フォーム内部構造へのアクセス補助）
   getFieldObject<K extends keyof T>(key: K): T[K] {
-    return (this._fields as any)[key];
+    return this._fields[key];
   }
 
   getFieldValue<K extends keyof T>(key: K): T[K] extends FieldObject<infer U> ? U : never {
-    return ((this._fields as any)[key]?.value) as any;
+    return (this._fields[key] as FieldObject<any> | undefined)?.value as any;
   }
 
   setFieldValue<K extends keyof T>(key: K, value: T[K] extends FieldObject<infer U> ? U : never): void {
-    if ((this._fields as any)[key]) {
-      (this._fields as any)[key].value = value as any;
+    if (this._fields[key]) {
+      (this._fields[key] as FieldObject<any>).value = value as any;
     } else {
       console.error(`setFieldValue error: ${String(key)} is not found in _fields`);
     }
@@ -262,8 +266,8 @@ export class VufForm<T extends Record<string, FieldObject<any>>> {
     // ネスト（"parent.child"）指定にも対応（旧 vuf2.ts 互換）。
     this.startValid();
     const keys: string[] = fieldNames && fieldNames.length > 0
-      ? (fieldNames as string[])
-      : Object.keys(this._fields as any).filter(key => !key.startsWith('$'));
+      ? fieldNames
+      : Object.keys(this._fields as Record<string, unknown>).filter(key => !key.startsWith('$'));
     let isValid = true;
     for (const key of keys) {
       if (key.startsWith('$')) continue;
