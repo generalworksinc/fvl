@@ -11,7 +11,7 @@
   },
   "files": ["dist"],
   "peerDependencies": {
-    "vue": ">=3.3",
+    "vue": "^3.4",
     "solid-js": ">=1.8"
   },
   "peerDependenciesMeta": {
@@ -29,6 +29,7 @@
     "build": "tsup"
   },
   "devDependencies": {
+    "vue": "^3.4.0",
     "tsup": "^8.5.0",
     "typescript": "^5.9.2"
   },
