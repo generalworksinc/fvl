@@ -1,0 +1,28 @@
+{
+  "name": "@generalworks/vuf",
+  "version": "1.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./dist/core/index.js",
+    "./vue": "./dist/vue/index.js",
+    "./solid": "./dist/solid/index.js",
+    "./messages/ja": "./dist/messages/ja.js",
+    "./messages/en": "./dist/messages/en.js"
+  },
+  "files": ["dist"],
+  "peerDependencies": {
+    "vue": ">=3.3",
+    "solid-js": ">=1.8"
+  },
+  "peerDependenciesMeta": {
+    "vue": { "optional": true },
+    "solid-js": { "optional": true }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "test": "bun test",
+    "build": "tsup"
+  }
+}
+
