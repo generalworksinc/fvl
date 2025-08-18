@@ -1,6 +1,9 @@
 // Core public API (placeholder)
 
 export type ValidatorFunction = (value: unknown, form: unknown, ...params: unknown[]) => boolean;
+export * from './types';
+export { default as validators } from './validators';
+export * as localeMessages from './messages';
 
 // Validator registry (stubs)
 export function registerValidator(name: string, fn: ValidatorFunction): void {
