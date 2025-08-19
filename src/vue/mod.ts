@@ -1,4 +1,3 @@
-import { watch as vueWatch } from 'vue';
 import {
   getValidatorMap,
   makeRule,
@@ -138,10 +137,10 @@ export class VufForm<T extends Record<string, FieldObject<any>>> {
     // 内部キーとイベントマップを初期化
     this[KEY_RANDOM] = { value: randomKey(), name: '$key' };
     this[KEY_EMITS] = options?.emits || {};
-    // watch の解決優先度: 注入 > グローバル（テスト用） > Vue の watch
-    this._watch =
-      options?.watchFn ||
-      (((globalThis as any).watch as WatchFunction | undefined) ?? (vueWatch as unknown as WatchFunction));
+    // watch の解決優先度: 注入 > グローバル（テスト用） > no-op
+    const globalWatch = (globalThis as any).watch as WatchFunction | undefined;
+    const noopWatch: WatchFunction = () => {};
+    this._watch = options?.watchFn || globalWatch || noopWatch;
   }
 
   static gen(): VufForm<Record<string, FieldObject<any>>> {
