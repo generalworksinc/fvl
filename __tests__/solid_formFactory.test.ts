@@ -1,4 +1,5 @@
 import { describe, test, expect, beforeEach } from 'bun:test';
+import { createRoot } from 'solid-js';
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -22,41 +23,45 @@ describe('createForm (solidjs/formFactory.ts)', () => {
   beforeEach(() => { effects.clear(); });
 
   test('親メソッドを使って validate を実装し、拡張メソッドとして利用できる', () => {
-    const factory = createForm({
-      name: { value: '', name: 'Name', validate: [required()] },
-      email: { value: '', name: 'Email', validate: [] },
-    }, (parent: any) => ({
-      validateAll() { return parent.groupIsValid(); },
-      upperName() { parent.setFieldValue('name', String(parent.getFieldValue('name')).toUpperCase()); },
-    }));
+    createRoot(() => {
+      const factory = createForm({
+        name: { value: '', name: 'Name', validate: [required()] },
+        email: { value: '', name: 'Email', validate: [] },
+      }, (parent: any) => ({
+        validateAll() { return parent.groupIsValid(); },
+        upperName() { parent.setFieldValue('name', String(parent.getFieldValue('name')).toUpperCase()); },
+      }));
 
-    const form: any = factory();
-    expect(typeof form.validateAll).toBe('function');
-    form.upperName();
-    expect(form.name).toBe(''); // 空のため変化なし
-    form.setFieldValue('name', 'john');
-    form.upperName();
-    expect(form.name).toBe('JOHN');
+      const form: any = factory();
+      expect(typeof form.validateAll).toBe('function');
+      form.upperName();
+      expect(form.name).toBe(''); // 空のため変化なし
+      form.setFieldValue('name', 'john');
+      form.upperName();
+      expect(form.name).toBe('JOHN');
 
-    form.startValid();
-    form.setFieldValue('name', '');
-    expect(form.validateAll()).toBe(false);
-    form.setFieldValue('name', 'OK');
-    expect(form.validateAll()).toBe(true);
+      form.startValid();
+      form.setFieldValue('name', '');
+      expect(form.validateAll()).toBe(false);
+      form.setFieldValue('name', 'OK');
+      expect(form.validateAll()).toBe(true);
+    });
   });
 
   test('parent.validate ラッパーの実行（createParentMethods 内の関数カバレッジ）', () => {
-    const factory = createForm({
-      name: { value: 'OK', name: 'Name', validate: [required()] },
-    }, (parent: any) => ({
-      run() {
-        return parent.validate();
-      },
-    }));
+    createRoot(() => {
+      const factory = createForm({
+        name: { value: 'OK', name: 'Name', validate: [required()] },
+      }, (parent: any) => ({
+        run() {
+          return parent.validate();
+        },
+      }));
 
-    const form: any = factory();
-    form.startValid();
-    expect(form.run()).toBe(true);
+      const form: any = factory();
+      form.startValid();
+      expect(form.run()).toBe(true);
+    });
   });
 });
 

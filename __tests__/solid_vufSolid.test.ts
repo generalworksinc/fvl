@@ -1,4 +1,5 @@
 import { describe, test, expect, jest, beforeEach } from 'bun:test';
+import { createRoot } from 'solid-js';
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -161,14 +162,24 @@ describe('VufForm (solidjs/vufSolid.ts)', () => {
   });
 
   describe('validateWatch', () => {
-    test('即時検証フラグで isErrorField を呼ぶ', () => {
-      const form: any = makeForm();
-      const spy = jest.spyOn(form, 'isErrorField');
-      form.validateWatch(true);
-      expect(spy).toHaveBeenCalled();
+    test('validateWatch(true): 初期はエラーなし → startValid 後に不正値でエラー → 正常値で解消', () => {
+      createRoot(() => {
+        const form: any = makeForm();
+        form.validateWatch(true);
 
-      form.name = 'Z';
-      expect(spy).toHaveBeenCalled();
+        // 初期はエラーなし
+        const v0 = (form as any).getFieldObject('name').validator;
+        expect(v0 && v0.error).toBe(false);
+
+        // 不正値に変更 → startValid 明示 → エラーになる
+        form.name = '';
+        form.startValid();
+        expect(form.isErrorField('name')).toBe(true);
+
+        // 正常値に戻す → エラー解消
+        form.name = 'John';
+        expect(form.isErrorField('name')).toBe(false);
+      });
     });
   });
 
