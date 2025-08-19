@@ -12,7 +12,7 @@ const validatorRegistry: Record<string, ValidatorFunction> = { ...baseValidators
 
 const messagesRegistry: Record<string, Record<string, string>> = { ...baseMessages } as any;
 
-let currentLocale = (Object.keys(messagesRegistry)[0] || 'ja');
+let currentLocale: string = (Object.keys(messagesRegistry)[0] || 'ja');
 
 // ----------------------------
 // Validator extension API
@@ -34,7 +34,7 @@ export function getValidatorMap(): Readonly<Record<string, ValidatorFunction>> {
   return validatorRegistry;
 }
 
-export function makeRule(name: string) {
+export function makeRule(name: string): (...params: unknown[]) => [string, ...unknown[]] {
   return (...params: unknown[]) => [name, ...params] as [string, ...unknown[]];
 }
 

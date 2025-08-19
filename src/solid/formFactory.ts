@@ -19,6 +19,11 @@ export function createForm<
 >(
   formDefinition: T,
   methodsFactory: MethodsFactory<M>
+): (options?: { emits?: EmitFunctions }) => (
+  { [K in keyof T]: T[K]['value'] }
+  & Omit<VufFormPublicMethods, keyof M>
+  & M
+  & { __valueType?: { [K in keyof T]: T[K]['value'] } }
 ) {
   type FormValues = { [K in keyof T]: T[K]['value'] };
 
@@ -56,7 +61,7 @@ export function createForm<
 
   type ExtendedForm = FormValues & Omit<VufFormPublicMethods, keyof M> & M & { __valueType?: FormValues };
   const factory = (options?: { emits?: EmitFunctions }) => new FormClass(options) as unknown as ExtendedForm;
-  return factory as (options?: { emits?: EmitFunctions }) => ExtendedForm;
+  return factory;
 }
 
 
