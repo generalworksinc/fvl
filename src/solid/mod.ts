@@ -13,6 +13,7 @@
  * - JSON 化は `getValueJson` を基礎として、キー整形（頭大文字など）を派生で提供
  */
 import { getValidatorMap, getMessages, makeRule } from '../core/mod';
+import { createSignal, createEffect } from 'solid-js';
 export * from './formFactory';
 
 export type ValidateList = Array<string | [string, ...any[]]>;
@@ -65,7 +66,7 @@ const randomKey = (() => {
 
 export class VufForm<T extends Record<string, FieldConfig<any>>> {
   private _fields: Record<string, FieldObject<any>> = {};
-  $startValid: [() => boolean, (v: boolean) => boolean] = (globalThis as any).createSignal(false);
+  $startValid: [() => boolean, (v: boolean) => boolean] = createSignal(false);
 
   [KEY_RANDOM]: { value: number; name: string };
   [KEY_EMITS]: EmitFunctions;
@@ -79,7 +80,7 @@ export class VufForm<T extends Record<string, FieldConfig<any>>> {
     for (const key in clonedModel) {
       if (Object.prototype.hasOwnProperty.call(clonedModel, key)) {
         const config = clonedModel[key];
-        const signal = (globalThis as any).createSignal(config.value);
+        const signal = createSignal(config.value);
         const obj: FieldObject<any> = {
           ...config,
           value: signal,
@@ -207,7 +208,7 @@ export class VufForm<T extends Record<string, FieldConfig<any>>> {
     for (const key in this._fields) {
       if (!key.includes('$')) {
         const fieldSignal = this._fields[key].value;
-        (globalThis as any).createEffect(() => {
+        createEffect(() => {
           const currentValue = fieldSignal[0]();
           const validationStarted = this.$startValid[0]();
           if (isValidateImmediately || validationStarted) this.isErrorField(String(key));
