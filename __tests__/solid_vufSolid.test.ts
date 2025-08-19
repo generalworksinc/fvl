@@ -25,7 +25,7 @@ describe('VufForm (solidjs/vufSolid.ts)', () => {
       age: { value: null, name: '年齢', validate: [required()], type: Number },
       description: { value: '', name: '説明', validate: [] },
     };
-    return new (VufForm as any)(model, { emits });
+    return new VufForm(model, { emits });
   }
 
   beforeEach(() => {
