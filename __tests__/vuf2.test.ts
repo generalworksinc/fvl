@@ -1,81 +1,86 @@
 import { describe, test, expect, jest, beforeEach } from 'bun:test';
-import { VufForm, maxLength, required, anyCondition, sameAs, isEmail, field } from '../vuf2.ts';
+import { VufForm, maxLength, required, anyCondition, sameAs, isEmail, field } from '../src/vue/mod.ts';
+
+declare global {
+  // Minimal global watch signature for tests
+  // eslint-disable-next-line @typescript-eslint/no-namespace
+  interface Global { watch?: any }
+}
 
 // テスト用の watch モック（Vue の watch 相当）
-const watch = jest.fn((source, cb) => {
-  if (typeof cb === 'function') cb(source.value, undefined);
+const watch = jest.fn((source: any, cb: (nv: any, ov: any) => void) => {
+  if (typeof cb === 'function') cb(source?.value ?? source, undefined as any);
 });
-global.watch = watch;
+(global as any).watch = watch as any;
 
 describe('VufForm (vuf2.ts)', () => {
-  function makeForm(emits = {}) {
-    const model = {
+  function makeForm(emits: Record<string, any> = {}) {
+    const model: any = {
       name: { value: '', name: '名前', validate: [required(), maxLength(50)] },
       email: { value: '', name: 'メール', validate: [required(), isEmail()] },
       age: { value: null, name: '年齢', validate: [required()], type: Number },
       description: { value: '', name: '説明', validate: [] },
     };
-    return new VufForm(model, { emits, watchFn: watch });
+    return new (VufForm as any)(model, { emits, watchFn: watch });
   }
 
   describe('constructor', () => {
     test('初期化', () => {
-      const form = makeForm();
-      expect(form).toBeInstanceOf(VufForm);
+      const form: any = makeForm();
+      expect(form).toBeInstanceOf(VufForm as any);
       expect(form.name).toBe('');
       expect(form.email).toBe('');
       expect(typeof form.getKey()).toBe('number');
     });
 
     test('static gen が未実装の場合は例外', () => {
-      class InvalidForm extends VufForm {}
-      expect(() => InvalidForm.gen()).toThrow();
+      class InvalidForm extends (VufForm as any) {}
+      expect(() => (InvalidForm as any).gen()).toThrow();
     });
   });
 
   describe('setData', () => {
     test('通常オブジェクトをセット', () => {
-      const form = makeForm();
+      const form: any = makeForm();
       form.setData({ name: 'John', email: 'john@example.com' });
       expect(form.name).toBe('John');
       expect(form.email).toBe('john@example.com');
     });
 
     test('null/undefined は無視', () => {
-      const form = makeForm();
+      const form: any = makeForm();
       form.setData(null);
       expect(form.name).toBe('');
-      // @ts-ignore
-      form.setData(undefined);
+      form.setData(undefined as any);
       expect(form.name).toBe('');
     });
 
     test('keyAndFunc でカスタム処理', () => {
-      const form = makeForm();
-      const fn = jest.fn((v) => (form)._fields.name.value = `Custom:${v}`);
+      const form: any = makeForm();
+      const fn = jest.fn((v: any) => (form as any)._fields.name.value = `Custom:${v}`);
       form.setData({ name: 'John' }, { name: fn });
       expect(fn).toHaveBeenCalledWith('John');
       expect(form.name).toBe('Custom:John');
     });
 
     test('ネストした VufForm を再帰的に生成', () => {
-      class Child extends VufForm {
+      class Child extends (VufForm as any) {
         static gen() {
-          return new Child({ first: { value: '', validate: [required()] } }, { watchFn: watch });
+          return new (Child as any)({ first: { value: '', validate: [required()] } }, { watchFn: watch });
         }
       }
-      const form = new VufForm({ child: { value: null, type: Child, validate: [] } }, { watchFn: watch });
+      const form: any = new (VufForm as any)({ child: { value: null, type: Child, validate: [] } }, { watchFn: watch });
       form.setData({ child: { first: 'Taro' } });
-      expect((form)._fields.child.value.getJson().first).toBe('Taro');
+      expect((form as any)._fields.child.value.getJson().first).toBe('Taro');
     });
 
     test('VufForm 配列を再帰的に生成', () => {
-      class Item extends VufForm {
+      class Item extends (VufForm as any) {
         static gen() {
-          return new Item({ name: { value: '', validate: [] } }, { watchFn: watch });
+          return new (Item as any)({ name: { value: '', validate: [] } }, { watchFn: watch });
         }
       }
-      const form = new VufForm({ items: { value: [], type: Array, subType: Item, validate: [] } }, { watchFn: watch });
+      const form: any = new (VufForm as any)({ items: { value: [], type: Array, subType: Item, validate: [] } }, { watchFn: watch });
       form.setData({ items: [{ name: 'item1' }, { name: 'item2' }] });
       const json = form.getJson();
       expect(Array.isArray(json.items)).toBe(true);
@@ -86,7 +91,7 @@ describe('VufForm (vuf2.ts)', () => {
 
   describe('getValueJson / getJson / getJsonHeadUpper', () => {
     test('基本 JSON 化', () => {
-      const form = makeForm();
+      const form: any = makeForm();
       form.name = 'John';
       form.email = 'john@example.com';
       form.age = 30;
@@ -97,7 +102,7 @@ describe('VufForm (vuf2.ts)', () => {
     });
 
     test('isIgnoreBlank=true で空文字フィルタ', () => {
-      const form = makeForm();
+      const form: any = makeForm();
       form.name = 'John';
       form.email = '';
       const json = form.getValueJson({ isIgnoreBlank: true });
@@ -106,22 +111,22 @@ describe('VufForm (vuf2.ts)', () => {
     });
 
     test('format キー変換', () => {
-      const form = makeForm();
+      const form: any = makeForm();
       form.name = 'John';
-      const json = form.getValueJson({ format: (k) => `x_${k}` });
+      const json = form.getValueJson({ format: (k: string) => `x_${k}` });
       expect(json).toHaveProperty('x_name', 'John');
       expect(json).not.toHaveProperty('name');
     });
 
     test('getJson エイリアス', () => {
-      const form = makeForm();
+      const form: any = makeForm();
       const spy = jest.spyOn(form, 'getValueJson');
       form.getJson({});
       expect(spy).toHaveBeenCalled();
     });
 
     test('getJsonHeadUpper', () => {
-      const form = makeForm();
+      const form: any = makeForm();
       form.name = 'John';
       form.email = 'a@b.c';
       const json = form.getJsonHeadUpper({});
@@ -132,7 +137,7 @@ describe('VufForm (vuf2.ts)', () => {
 
   describe('数値変換', () => {
     test('Number 型: 文字列→数値', () => {
-      const form = makeForm();
+      const form: any = makeForm();
       form.age = '30';
       const json = form.getValueJson({});
       expect(json.age).toBe(30);
@@ -140,7 +145,7 @@ describe('VufForm (vuf2.ts)', () => {
     });
 
     test('Number 型: NaN は null にしログ出力', () => {
-      const form = makeForm();
+      const form: any = makeForm();
       const spy = jest.spyOn(console, 'log').mockImplementation(() => {});
       form.age = 'not-a-number';
       const json = form.getValueJson({});
@@ -152,12 +157,12 @@ describe('VufForm (vuf2.ts)', () => {
 
   describe('バリデーション', () => {
     test('startValid 前は isErrorField=false', () => {
-      const form = makeForm();
+      const form: any = makeForm();
       expect(form.isErrorField('name')).toBe(false);
     });
 
     test('必須/Email 判定', () => {
-      const form = makeForm();
+      const form: any = makeForm();
       form.startValid();
       form.name = '';
       expect(form.isErrorField('name')).toBe(true);
@@ -171,15 +176,15 @@ describe('VufForm (vuf2.ts)', () => {
     });
 
     test('anyCondition は emit を呼ぶ（値非空時）', () => {
-      const emits = { custom: jest.fn(() => true) };
-      const form = new VufForm({ x: { value: 'v', validate: [anyCondition('custom', 'msg')] } }, { emits, watchFn: watch });
+      const emits = { custom: jest.fn(() => true) } as any;
+      const form: any = new (VufForm as any)({ x: { value: 'v', validate: [anyCondition('custom', 'msg')] } }, { emits, watchFn: watch });
       form.startValid();
       expect(form.isErrorField('x')).toBe(false);
       expect(emits.custom).toHaveBeenCalledWith('v', 'msg');
     });
 
     test('groupIsValid', () => {
-      const form = makeForm();
+      const form: any = makeForm();
       form.startValid();
       form.name = '';
       expect(form.groupIsValid(['name'])).toBe(false);
@@ -190,7 +195,7 @@ describe('VufForm (vuf2.ts)', () => {
 
   describe('validateWatch', () => {
     test('即時検証フラグで isErrorField を呼ぶ', () => {
-      const form = makeForm();
+      const form: any = makeForm();
       const spy = jest.spyOn(form, 'isErrorField');
       form.validateWatch(true);
       expect(watch).toHaveBeenCalled();
@@ -200,7 +205,7 @@ describe('VufForm (vuf2.ts)', () => {
 
   describe('field ヘルパ', () => {
     test('FieldObject を生成', () => {
-      const obj = field({ value: 'x', name: 'X', validate: [] });
+      const obj: any = field({ value: 'x', name: 'X', validate: [] } as any);
       expect(obj.value).toBe('x');
       expect(obj.name).toBe('X');
     });
@@ -214,14 +219,14 @@ describe('VufForm (vuf2.ts)', () => {
       expect(anyCondition).toBeDefined();
       expect(sameAs).toBeDefined();
 
-      expect(required()[0]).toBe('required');
-      expect(maxLength(10)[0]).toBe('maxLength');
+      expect((required as any)()[0]).toBe('required');
+      expect((maxLength as any)(10)[0]).toBe('maxLength');
     });
   });
 
   describe('ユーティリティ/内部API', () => {
     test('getFieldObject / getFieldValue / setFieldValue', () => {
-      const form = makeForm();
+      const form: any = makeForm();
       form.name = 'Alice';
       expect(form.getFieldObject('name').value).toBe('Alice');
       expect(form.getFieldValue('name')).toBe('Alice');
@@ -231,8 +236,8 @@ describe('VufForm (vuf2.ts)', () => {
     });
 
     test('addEmit / emit / removeEmit', () => {
-      const form = makeForm();
-      const handler = jest.fn((v) => `ok:${v}`);
+      const form: any = makeForm();
+      const handler = jest.fn((v: any) => `ok:${v}`);
       form.addEmit('hello', handler);
       const ret = form.emit('hello', 123);
       expect(handler).toHaveBeenCalledWith(123);
@@ -247,7 +252,7 @@ describe('VufForm (vuf2.ts)', () => {
     });
 
     test('getValueJsonStr', () => {
-      const form = makeForm();
+      const form: any = makeForm();
       form.name = 'JsonStr';
       const str = form.getValueJsonStr({ isIgnoreBlank: false });
       const obj = JSON.parse(str);

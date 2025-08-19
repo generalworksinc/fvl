@@ -1,13 +1,18 @@
 import { describe, test, expect, beforeEach } from 'bun:test';
 
+declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
+  interface Global { createEffect?: any; createSignal?: any }
+}
+
 // SolidJS の最低限モック
-const effects = new Set();
-global.createEffect = (fn) => { effects.add(fn); fn(); };
-global.createSignal = (initial) => {
+const effects = new Set<Function>();
+(global as any).createEffect = (fn: Function) => { effects.add(fn); fn(); };
+(global as any).createSignal = (initial: any) => {
   let v = initial;
   const get = () => v;
-  const set = (nv) => { v = nv; effects.forEach((e) => e()); return nv; };
-  return [get, set];
+  const set = (nv: any) => { v = nv; effects.forEach((e) => e()); return nv; };
+  return [get, set] as const;
 };
 
 import { createForm } from '../src/solid/formFactory.ts';
@@ -20,12 +25,12 @@ describe('createForm (solidjs/formFactory.ts)', () => {
     const factory = createForm({
       name: { value: '', name: 'Name', validate: [required()] },
       email: { value: '', name: 'Email', validate: [] },
-    }, (parent) => ({
+    }, (parent: any) => ({
       validateAll() { return parent.groupIsValid(); },
       upperName() { parent.setFieldValue('name', String(parent.getFieldValue('name')).toUpperCase()); },
     }));
 
-    const form = factory();
+    const form: any = factory();
     expect(typeof form.validateAll).toBe('function');
     form.upperName();
     expect(form.name).toBe(''); // 空のため変化なし
@@ -43,13 +48,13 @@ describe('createForm (solidjs/formFactory.ts)', () => {
   test('parent.validate ラッパーの実行（createParentMethods 内の関数カバレッジ）', () => {
     const factory = createForm({
       name: { value: 'OK', name: 'Name', validate: [required()] },
-    }, (parent) => ({
+    }, (parent: any) => ({
       run() {
         return parent.validate();
       },
     }));
 
-    const form = factory();
+    const form: any = factory();
     form.startValid();
     expect(form.run()).toBe(true);
   });

@@ -1,16 +1,19 @@
 import { describe, expect, test, jest, beforeEach } from "bun:test";
 // import validators from '../validators.js';
-import validators from '../validators.ts';
+import validators from '../src/core/validators.ts';
+import type { IVufForm } from "../src/core/types.ts";
 
 describe('validators', () => {
-  // モックフォームオブジェクト
-  const mockForm = {
-    emit: jest.fn().mockReturnValue(true)
-  };
+  // モックフォームオブジェクト（IVufForm 満たす）
+  const mockForm: IVufForm & { emit: ReturnType<typeof jest.fn> } = {
+    emit: jest.fn().mockReturnValue(true),
+    getJson: () => ({}),
+    isErrorField: () => false,
+  } as any;
 
   beforeEach(() => {
     // 各テスト前にモックをリセット
-    mockForm.emit.mockClear();
+    (mockForm.emit as any).mockClear();
   });
 
   describe('required', () => {
@@ -65,11 +68,11 @@ describe('validators', () => {
     });
 
     test('emitを呼び出し、その結果を返す', () => {
-      mockForm.emit.mockReturnValueOnce(true);
+      (mockForm.emit as any).mockReturnValueOnce(true);
       expect(validators.anyCondition('test', mockForm, 'checkFunc')).toBe(true);
       expect(mockForm.emit).toHaveBeenCalledWith('checkFunc', 'test', undefined);
 
-      mockForm.emit.mockReturnValueOnce(false);
+      (mockForm.emit as any).mockReturnValueOnce(false);
       expect(validators.anyCondition('test', mockForm, 'checkFunc')).toBe(false);
     });
   });
@@ -156,7 +159,7 @@ describe('validators', () => {
 
   describe('sameAs', () => {
     test('未実装のため例外をスローする', () => {
-      expect(() => validators.sameAs()).toThrow();
+      expect(() => validators.sameAs('x', mockForm as any)).toThrow();
     });
   });
 }); 

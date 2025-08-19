@@ -1,26 +1,31 @@
 import { describe, test, expect, jest, beforeEach } from 'bun:test';
 
+declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
+  interface Global { createEffect?: any; createSignal?: any }
+}
+
 // SolidJS の最低限モック
-const effects = new Set();
-global.createEffect = (fn) => { effects.add(fn); fn(); };
-global.createSignal = (initial) => {
+const effects = new Set<Function>();
+(global as any).createEffect = (fn: Function) => { effects.add(fn); fn(); };
+(global as any).createSignal = (initial: any) => {
   let v = initial;
   const get = () => v;
-  const set = (nv) => { v = nv; effects.forEach((e) => e()); return nv; };
-  return [get, set];
+  const set = (nv: any) => { v = nv; effects.forEach((e) => e()); return nv; };
+  return [get, set] as const;
 };
 
 import { VufForm, required, maxLength, isEmail, anyCondition, field } from '../src/solid/mod.ts';
 
 describe('VufForm (solidjs/vufSolid.ts)', () => {
-  function makeForm(emits = {}) {
-    const model = {
+  function makeForm(emits: Record<string, any> = {}) {
+    const model: any = {
       name: { value: '', name: '名前', validate: [required(), maxLength(50)] },
       email: { value: '', name: 'メール', validate: [required(), isEmail()] },
       age: { value: null, name: '年齢', validate: [required()], type: Number },
       description: { value: '', name: '説明', validate: [] },
     };
-    return new VufForm(model, { emits });
+    return new (VufForm as any)(model, { emits });
   }
 
   beforeEach(() => {
@@ -29,22 +34,22 @@ describe('VufForm (solidjs/vufSolid.ts)', () => {
 
   describe('constructor', () => {
     test('初期化', () => {
-      const form = makeForm();
-      expect(form).toBeInstanceOf(VufForm);
+      const form: any = makeForm();
+      expect(form).toBeInstanceOf(VufForm as any);
       expect(form.name).toBe('');
       expect(form.email).toBe('');
       expect(typeof form.getKey()).toBe('number');
     });
 
     test('static gen が未実装の場合は例外', () => {
-      class InvalidForm extends VufForm {}
-      expect(() => InvalidForm.gen()).toThrow();
+      class InvalidForm extends (VufForm as any) {}
+      expect(() => (InvalidForm as any).gen()).toThrow();
     });
   });
 
   describe('基本操作', () => {
     test('get/set と Field API', () => {
-      const form = makeForm();
+      const form: any = makeForm();
       form.name = 'Alice';
       expect(form.getFieldValue('name')).toBe('Alice');
       form.setFieldValue('name', 'Bob');
@@ -53,8 +58,8 @@ describe('VufForm (solidjs/vufSolid.ts)', () => {
     });
 
     test('emit/addEmit/removeEmit', () => {
-      const form = makeForm();
-      const handler = jest.fn((v) => `ok:${v}`);
+      const form: any = makeForm();
+      const handler = jest.fn((v: any) => `ok:${v}`);
       form.addEmit('hello', handler);
       const ret = form.emit('hello', 1);
       expect(handler).toHaveBeenCalledWith(1);
@@ -71,7 +76,7 @@ describe('VufForm (solidjs/vufSolid.ts)', () => {
 
   describe('JSON 取得', () => {
     test('getValueJson / getJson / getJsonHeadUpper', () => {
-      const form = makeForm();
+      const form: any = makeForm();
       form.name = 'John';
       form.email = 'john@example.com';
       form.age = 30;
@@ -89,14 +94,14 @@ describe('VufForm (solidjs/vufSolid.ts)', () => {
     });
 
     test('isIgnoreBlank / format / getValueJsonStr', () => {
-      const form = makeForm();
+      const form: any = makeForm();
       form.name = 'John';
       form.email = '';
       const filtered = form.getValueJson({ isIgnoreBlank: true });
       expect(filtered).toHaveProperty('name', 'John');
       expect(filtered.email).toBeUndefined();
 
-      const formatted = form.getValueJson({ format: (k) => `x_${k}` });
+      const formatted = form.getValueJson({ format: (k: string) => `x_${k}` });
       expect(formatted).toHaveProperty('x_name', 'John');
       expect(formatted).not.toHaveProperty('name');
 
@@ -106,7 +111,7 @@ describe('VufForm (solidjs/vufSolid.ts)', () => {
     });
 
     test('Number 型: 文字列→数値', () => {
-      const form = makeForm();
+      const form: any = makeForm();
       form.age = '30';
       const json = form.getValueJson({});
       expect(json.age).toBe(30);
@@ -114,7 +119,7 @@ describe('VufForm (solidjs/vufSolid.ts)', () => {
     });
 
     test('formatValue: 配列値を処理', () => {
-      const form = new VufForm({ tags: { value: [], name: 'タグ', validate: [] } });
+      const form: any = new (VufForm as any)({ tags: { value: [], name: 'タグ', validate: [] } });
       form.setData({ tags: ['a', 'b'] });
       const json = form.getValueJson({});
       expect(Array.isArray(json.tags)).toBe(true);
@@ -124,7 +129,7 @@ describe('VufForm (solidjs/vufSolid.ts)', () => {
 
   describe('バリデーション', () => {
     test('必須/Email 判定', () => {
-      const form = makeForm();
+      const form: any = makeForm();
       form.startValid();
       form.name = '';
       expect(form.isErrorField('name')).toBe(true);
@@ -138,15 +143,15 @@ describe('VufForm (solidjs/vufSolid.ts)', () => {
     });
 
     test('anyCondition は emit を呼ぶ（値非空時）', () => {
-      const emits = { custom: jest.fn(() => true) };
-      const form = new VufForm({ x: { value: 'v', validate: [anyCondition('custom', 'msg')] } }, { emits });
+      const emits = { custom: jest.fn(() => true) } as any;
+      const form: any = new (VufForm as any)({ x: { value: 'v', validate: [anyCondition('custom', 'msg')] } }, { emits });
       form.startValid();
       expect(form.isErrorField('x')).toBe(false);
       expect(emits.custom).toHaveBeenCalledWith('v', 'msg');
     });
 
     test('groupIsValid', () => {
-      const form = makeForm();
+      const form: any = makeForm();
       form.startValid();
       form.name = '';
       expect(form.groupIsValid(['name'])).toBe(false);
@@ -157,12 +162,11 @@ describe('VufForm (solidjs/vufSolid.ts)', () => {
 
   describe('validateWatch', () => {
     test('即時検証フラグで isErrorField を呼ぶ', () => {
-      const form = makeForm();
+      const form: any = makeForm();
       const spy = jest.spyOn(form, 'isErrorField');
       form.validateWatch(true);
       expect(spy).toHaveBeenCalled();
 
-      // setter による再評価
       form.name = 'Z';
       expect(spy).toHaveBeenCalled();
     });
@@ -170,22 +174,21 @@ describe('VufForm (solidjs/vufSolid.ts)', () => {
 
   describe('setData（ネスト/配列/カスタム処理）', () => {
     test('ネストした VufForm を再帰的に生成', () => {
-      class Child extends VufForm {
+      class Child extends (VufForm as any) {
         static gen() {
-          return new Child({ first: { value: '', name: 'first', validate: [required()] } });
+          return new (Child as any)({ first: { value: '', name: 'first', validate: [required()] } });
         }
       }
-      const form = new VufForm({ child: { value: null, name: '子', validate: [], type: Child } });
+      const form: any = new (VufForm as any)({ child: { value: null, name: '子', validate: [], type: Child } });
       form.setData({ child: { first: 'Taro' } });
-      // Solid 実装では value に直接代入されるため Signal ではない
       expect(form.getJson().child.first).toBe('Taro');
     });
 
     test('VufForm 配列を再帰的に生成', () => {
-      class Item extends VufForm {
-        static gen() { return new Item({ name: { value: '', name: 'n', validate: [] } }); }
+      class Item extends (VufForm as any) {
+        static gen() { return new (Item as any)({ name: { value: '', name: 'n', validate: [] } }); }
       }
-      const form = new VufForm({ items: { value: [], name: 'items', validate: [], type: Array, subType: Item } });
+      const form: any = new (VufForm as any)({ items: { value: [], name: 'items', validate: [], type: Array, subType: Item } });
       form.setData({ items: [{ name: 'i1' }, { name: 'i2' }] });
       const json = form.getJson({});
       expect(json.items[0].name).toBe('i1');
@@ -193,8 +196,8 @@ describe('VufForm (solidjs/vufSolid.ts)', () => {
     });
 
     test('keyAndFunc でカスタム処理', () => {
-      const form = makeForm();
-      const fn = jest.fn((v) => form.getFieldObject('name').value[1](`Custom:${v}`));
+      const form: any = makeForm();
+      const fn = jest.fn((v: any) => (form.getFieldObject('name') as any).value[1](`Custom:${v}`));
       form.setData({ name: 'John' }, { name: fn });
       expect(fn).toHaveBeenCalledWith('John');
       expect(form.name).toBe('Custom:John');
@@ -203,7 +206,7 @@ describe('VufForm (solidjs/vufSolid.ts)', () => {
 
   describe('field ヘルパ', () => {
     test('Field 構築', () => {
-      const obj = field({ value: 'x', name: 'X', validate: [] });
+      const obj: any = field({ value: 'x', name: 'X', validate: [] } as any);
       expect(obj.value).toBe('x');
       expect(obj.name).toBe('X');
     });

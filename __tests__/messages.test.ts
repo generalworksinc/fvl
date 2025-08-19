@@ -1,6 +1,6 @@
 import { describe, expect, test, jest } from "bun:test";
 // import messages from '../messages.js';
-import messages from '../messages.ts';
+import messages from '../src/core/messages/ja.ts';
 
 describe('messages', () => {
   test('必須バリデーションメッセージが定義されている', () => {

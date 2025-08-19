@@ -1,46 +1,46 @@
 import { describe, expect, test, beforeEach } from "bun:test";
-import { VufForm } from '../vuf.js';
+import { VufForm } from '../src/vue/mod.ts';
 
 // パフォーマンステスト用の大きなフォームクラス
-class LargeForm extends VufForm {
+class LargeForm extends (VufForm as any) {
   static gen() {
-    const model = {};
+    const model: any = {};
     
     // 多数のフィールドを持つフォームを生成
     for (let i = 0; i < 100; i++) {
-      model[`field${i}`] = {
+      (model as any)[`field${i}`] = {
         value: '',
         validate: []
       };
     }
     
-    return new LargeForm(model);
+    return new (LargeForm as any)(model);
   }
 }
 
 // ネストされたフォームを持つ大きなフォームクラス
-class NestedLargeForm extends VufForm {
+class NestedLargeForm extends (VufForm as any) {
   static gen() {
-    const model = {};
+    const model: any = {};
     
     // 多数のネストされたフォームを持つフォームを生成
     for (let i = 0; i < 20; i++) {
-      model[`nestedForm${i}`] = {
+      (model as any)[`nestedForm${i}`] = {
         value: {},
-        $form: LargeForm.gen()
+        $form: (LargeForm as any).gen()
       };
     }
     
-    return new NestedLargeForm(model);
+    return new (NestedLargeForm as any)(model);
   }
 }
 
 describe('VufForm Performance Tests', () => {
   describe('Large Form Performance', () => {
-    let largeForm;
+    let largeForm: any;
     
     beforeEach(() => {
-      largeForm = LargeForm.gen();
+      largeForm = (LargeForm as any).gen();
     });
     
     test('getJson performance for large form', () => {
@@ -81,10 +81,10 @@ describe('VufForm Performance Tests', () => {
   });
   
   describe('Nested Form Performance', () => {
-    let nestedLargeForm;
+    let nestedLargeForm: any;
     
     beforeEach(() => {
-      nestedLargeForm = NestedLargeForm.gen();
+      nestedLargeForm = (NestedLargeForm as any).gen();
     });
     
     test('getJson performance for nested form', () => {
@@ -107,15 +107,12 @@ describe('VufForm Performance Tests', () => {
   
   describe('Memory Usage Tests', () => {
     test('memory usage for creating many forms', () => {
-      // メモリ使用量を測定するための簡易的な方法
-      // 注意: Node.jsのprocess.memoryUsage()と異なり、Bunでは別の方法が必要かもしれません
-      
-      const forms = [];
+      const forms: any[] = [];
       const startTime = performance.now();
       
       // 1000個のフォームを作成
       for (let i = 0; i < 1000; i++) {
-        forms.push(LargeForm.gen());
+        forms.push((LargeForm as any).gen());
       }
       
       const endTime = performance.now();
@@ -131,14 +128,14 @@ describe('VufForm Performance Tests', () => {
   
   describe('Stress Tests', () => {
     test('rapid form data setting', () => {
-      const form = LargeForm.gen();
+      const form: any = (LargeForm as any).gen();
       const startTime = performance.now();
       
       // フォームのデータを1000回更新（setDataを使用）
       for (let i = 0; i < 1000; i++) {
-        const data = {};
+        const data: any = {};
         for (let j = 0; j < 100; j++) {
-          data[`field${j}`] = `value-${i}-${j}`;
+          (data as any)[`field${j}`] = `value-${i}-${j}`;
         }
         form.setData(data);
       }
