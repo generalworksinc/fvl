@@ -10,7 +10,9 @@
     "resolveJsonModule": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-    "noEmit": true
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "types": ["bun-types"]
   },
   "include": ["src", "__tests__"],
   "exclude": ["dist", "node_modules"]

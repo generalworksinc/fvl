@@ -29,9 +29,10 @@
     "build": "tsup"
   },
   "devDependencies": {
-    "vue": "^3.4.0",
+    "bun-types": "^1.2.20",
     "tsup": "^8.5.0",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "vue": "^3.4.0"
   },
   "dependencies": {
     "v8n": "^1"
