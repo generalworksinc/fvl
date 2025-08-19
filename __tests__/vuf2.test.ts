@@ -1,5 +1,6 @@
 import { describe, test, expect, jest, beforeEach } from 'bun:test';
 import { VufForm, maxLength, required, anyCondition, sameAs, isEmail, field } from '../src/vue/mod.ts';
+import { nextTick } from 'vue';
 
 declare global {
   // Minimal global watch signature for tests
@@ -194,11 +195,13 @@ describe('VufForm (vuf2.ts)', () => {
   });
 
   describe('validateWatch', () => {
-    test('即時検証フラグで isErrorField を呼ぶ', () => {
+    test('即時検証フラグで isErrorField を呼ぶ', async () => {
       const form: any = makeForm();
       const spy = jest.spyOn(form, 'isErrorField');
       form.validateWatch(true);
-      expect(watch).toHaveBeenCalled();
+      expect(spy).not.toHaveBeenCalled();
+      form.name = 'Z';
+      await nextTick();
       expect(spy).toHaveBeenCalled();
     });
   });

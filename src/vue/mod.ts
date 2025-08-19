@@ -3,6 +3,7 @@ import {
   makeRule,
   getMessages,
 } from '../core/mod';
+import { watch as vueWatch, reactive } from 'vue';
 
 // ----------------------------
 // 型定義（Vue アダプタ専用）
@@ -50,7 +51,7 @@ export interface GetValueJsonOptions {
   isIgnoreBlank?: boolean;
 }
 
-export type WatchFunction = <T>(source: T, callback: (newValue: T, oldValue: T) => void) => void;
+// Vue の watch を直接利用する方針のため、外部注入は廃止
 
 // ----------------------------
 // 内部シンボル/ヘルパ
@@ -100,16 +101,15 @@ function isVufFormConstructor(value: unknown): value is VufFormCtor {
 
 export class VufForm<T extends Record<string, FieldObject<any>>> {
   private _fields: T;
-  private _watch: WatchFunction;
 
   $startValid: boolean = false;
   [KEY_RANDOM]: { value: number; name: string };
   [KEY_EMITS]: EmitFunctions;
 
-  constructor(model: T, options?: { emits?: EmitFunctions; watchFn?: WatchFunction }) {
+  constructor(model: T, options?: { emits?: EmitFunctions }) {
     // モデルのシャローコピーから内部フィールドを初期化
     const clonedModel = { ...model } as Record<string, FieldObject<any>>;
-    this._fields = {} as T;
+    this._fields = reactive({}) as T;
     for (const key in clonedModel) {
       if (Object.prototype.hasOwnProperty.call(clonedModel, key) && clonedModel[key as keyof typeof clonedModel] !== undefined) {
         const obj = { ...(clonedModel as Record<string, FieldObject<any>>)[key] } as FieldObject;
@@ -137,10 +137,7 @@ export class VufForm<T extends Record<string, FieldObject<any>>> {
     // 内部キーとイベントマップを初期化
     this[KEY_RANDOM] = { value: randomKey(), name: '$key' };
     this[KEY_EMITS] = options?.emits || {};
-    // watch の解決優先度: 注入 > グローバル（テスト用） > no-op
-    const globalWatch = (globalThis as any).watch as WatchFunction | undefined;
-    const noopWatch: WatchFunction = () => {};
-    this._watch = options?.watchFn || globalWatch || noopWatch;
+    // watch は Vue の実装を直接利用（外部注入は廃止）
   }
 
   static gen(): VufForm<Record<string, FieldObject<any>>> {
@@ -237,14 +234,16 @@ export class VufForm<T extends Record<string, FieldObject<any>>> {
   }
 
   validateWatch(isValidateImmediately = false): void {
-    // 各フィールドの変更を watch で監視し、即時または startValid 後に検証を呼び出す。
-    for (const key of Object.keys(this._fields as Record<string, unknown>)) {
-      if (!key.includes('$')) {
-        const k = key as keyof T;
-        this._watch(this._fields[k], () => {
+    // 各フィールドの変更を Vue の watch で監視
+    const keys = Object.keys(this._fields as Record<string, unknown>).filter(k => !k.includes('$'));
+    for (const key of keys) {
+      const k = key as keyof T;
+      vueWatch(
+        () => (this._fields[k] as FieldObject<any>).value,
+        () => {
           if (isValidateImmediately || this.$startValid) this.isErrorField(key);
-        });
-      }
+        }
+      );
     }
   }
 

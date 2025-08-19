@@ -11,6 +11,7 @@
         "solid-js": "^1.9.9",
         "tsup": "^8.5.0",
         "typescript": "^5.9.2",
+        "vue": "^3.4.38",
       },
       "peerDependencies": {
         "solid-js": ">=1.8",
