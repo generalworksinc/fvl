@@ -195,14 +195,22 @@ describe('VufForm (vuf2.ts)', () => {
   });
 
   describe('validateWatch', () => {
-    test('即時検証フラグで isErrorField を呼ぶ', async () => {
+    test('validateWatch(true): 初期はエラーなし → startValid 後に不正値でエラー → 正常値で解消', async () => {
       const form: any = makeForm();
-      const spy = jest.spyOn(form, 'isErrorField');
       form.validateWatch(true);
-      expect(spy).not.toHaveBeenCalled();
-      form.name = 'Z';
       await nextTick();
-      expect(spy).toHaveBeenCalled();
+      // 初期はエラーなし
+      const v0 = (form as any).getFieldObject('name').validator;
+      expect(v0 && v0.error).toBe(false);
+      // 不正値に変更 → startValid 明示 → エラー
+      form.name = '';
+      form.startValid();
+      await nextTick();
+      expect(form.isErrorField('name')).toBe(true);
+      // 正常値に変更 → エラー解消
+      form.name = 'OK';
+      await nextTick();
+      expect(form.isErrorField('name')).toBe(false);
     });
   });
 
