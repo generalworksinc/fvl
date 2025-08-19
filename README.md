@@ -62,12 +62,13 @@ setLocale("ja");
   - 全体: `bun test`
   - 監視: `bun test --watch`
   - カバレッジ: `bun test --coverage`
+- JSR事前チェック（commit後に実施）
+  - 事前チェック: `bun run jsr:check`（JSRドライラン）
 - ビルド（GitHub 直導入向けに dist/ 出力）
   - 実行: `bun run build`（tsupで ESM + d.ts を `dist/` へ）
   - 目的: GitHub 直接インストール対応、サブパスごとのエントリをまとめて出力
   - 補足: JSR 公開のみなら jsr.json の `exports` が TS ソース（`src/**/mod.ts`）を指す運用も可
 - 公開（JSR）
-  - ドライラン: `bunx jsr publish --dry-run`
   - 本番公開: `bunx jsr publish`
 - 規約/補足
   - テストは TypeScript（`__tests__/**/*.test.ts`）で記述
@@ -78,7 +79,7 @@ setLocale("ja");
 
 - ワークフロー: `.github/workflows/ci.yml`
 - ジョブ構成:
-  - check: Lint（Biome）/ Typecheck / Test / Build（ローカル手順は「開発者ガイド」を参照）
+  - check: Lint / Typecheck / Test / Build / JSRドライラン（`bun run jsr:check`）
   - publish: main への push で JSR へ公開（`bunx jsr publish`、OIDC 利用でシークレット不要）
 - 推奨運用:
   - PR で check ジョブを必須化

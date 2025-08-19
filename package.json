@@ -26,7 +26,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
     "test": "bun test",
-    "build": "tsup"
+    "build": "tsup",
+    "jsr:check": "bunx jsr publish --dry-run"
   },
   "devDependencies": {
     "bun-types": "^1.2.20",
