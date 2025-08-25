@@ -30,7 +30,5 @@ export default defineConfig({
 	minify: false,
 	// Do not bundle framework peers. Keep them external to avoid forcing
 	// consumers to install unused frameworks (e.g. Solid users shouldn't get Vue).
-    external: ['vue', 'solid-js'],
+	external: ['vue', 'solid-js'],
 });
-
-

@@ -1,13 +1,12 @@
 {
-  "name": "@generalworks/vuf",
-  "version": "1.0.3",
-  "license": "MIT",
-  "exports": {
-    ".": "./src/core/mod.ts",
-    "./vue": "./src/vue/mod.ts",
-    "./solid": "./src/solid/mod.ts",
-    "./messages/ja": "./src/core/messages/ja.ts",
-    "./messages/en": "./src/core/messages/en.ts"
-  }
+	"name": "@generalworks/vuf",
+	"version": "1.0.3",
+	"license": "MIT",
+	"exports": {
+		".": "./src/core/mod.ts",
+		"./vue": "./src/vue/mod.ts",
+		"./solid": "./src/solid/mod.ts",
+		"./messages/ja": "./src/core/messages/ja.ts",
+		"./messages/en": "./src/core/messages/en.ts"
+	}
 }
-

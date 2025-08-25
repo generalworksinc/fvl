@@ -1,9 +1,9 @@
 {
-  "$schema": "https://biomejs.dev/schemas/1.8.3/schema.json",
-  "formatter": { "enabled": true },
-  "linter": { "enabled": true, "rules": { "recommended": true } },
-  "javascript": { "formatter": { "quoteStyle": "single" } },
-  "vcs": { "enabled": true, "clientKind": "git" },
-  "files": { "ignore": ["dist/**", "node_modules/**"] }
+	"$schema": "https://biomejs.dev/schemas/2.2.2/schema.json",
+	"formatter": { "enabled": true },
+	"linter": { "enabled": true, "rules": { "recommended": true } },
+	"javascript": {
+		"formatter": { "quoteStyle": "single" }
+	},
+	"vcs": { "enabled": true, "clientKind": "git" }
 }
-
