@@ -35,14 +35,14 @@
 		"jsr:check": "bunx jsr publish --dry-run"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "^2.0.0",
-		"bun-types": "^1.2.20",
+		"@biomejs/biome": "^2.2.2",
+		"bun-types": "^1.2.21",
 		"solid-js": "^1.9.9",
-		"vue": "^3.4.38",
+		"vue": "^3.5.20",
 		"tsup": "^8.5.0",
 		"typescript": "^5.9.2"
 	},
 	"dependencies": {
-		"v8n": "^1"
+		"v8n": "^1.5.1"
 	}
 }
