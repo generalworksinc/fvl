@@ -1,6 +1,6 @@
 {
 	"name": "@generalworks/vuf",
-	"version": "1.0.3",
+	"version": "1.0.4",
 	"type": "module",
 	"exports": {
 		".": "./dist/core/index.js",
