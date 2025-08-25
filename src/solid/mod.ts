@@ -103,7 +103,7 @@ export class VufForm<T extends Record<string, FieldConfig<any>>> {
 					value: signal,
 					validator: { error: false, message: '' },
 					[KEY_FORM]: this,
-					id: config.id || key + '_' + randomKey(),
+					id: config.id || `${key}_${randomKey()}`,
 				};
 				this._fields[key] = obj;
 				Object.defineProperty(this, key, {
@@ -268,7 +268,7 @@ export class VufForm<T extends Record<string, FieldConfig<any>>> {
 			if (!key.includes('$')) {
 				const fieldSignal = this._fields[key].value;
 				createEffect(() => {
-					const currentValue = fieldSignal[0]();
+					const _currentValue = fieldSignal[0]();
 					const validationStarted = this.$startValid[0]();
 					if (isValidateImmediately || validationStarted)
 						this.isErrorField(String(key));

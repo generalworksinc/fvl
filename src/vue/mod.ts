@@ -135,7 +135,7 @@ export class VufForm<T extends Record<string, FieldObject<any>>> {
 				obj.validator = { error: false, message: '' };
 				obj[KEY_FORM] = this as unknown as VufForm<any>;
 				// id 未指定なら自動採番
-				if (!obj.id) obj.id = key + '_' + randomKey();
+				if (!obj.id) obj.id = `${key}_${randomKey()}`;
 				this._fields[key as keyof T] = obj as T[keyof T];
 				const k = key as keyof T;
 				Object.defineProperty(this, key, {

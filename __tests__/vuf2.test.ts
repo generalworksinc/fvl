@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, jest, test } from 'bun:test';
+import { describe, expect, jest, test } from 'bun:test';
 import { nextTick } from 'vue';
 import {
 	anyCondition,
@@ -228,7 +228,7 @@ describe('VufForm (vuf2.ts)', () => {
 			await nextTick();
 			// 初期はエラーなし
 			const v0 = (form as any).getFieldObject('name').validator;
-			expect(v0 && v0.error).toBe(false);
+			expect(v0?.error).toBe(false);
 			// 不正値に変更 → startValid 明示 → エラー
 			form.name = '';
 			form.startValid();

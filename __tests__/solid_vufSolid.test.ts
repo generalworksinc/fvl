@@ -191,7 +191,7 @@ describe('VufForm (solidjs/vufSolid.ts)', () => {
 
 				// 初期はエラーなし
 				const v0 = (form as any).getFieldObject('name').validator;
-				expect(v0 && v0.error).toBe(false);
+				expect(v0?.error).toBe(false);
 
 				// 不正値に変更 → startValid 明示 → エラーになる
 				form.name = '';
