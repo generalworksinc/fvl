@@ -32,7 +32,7 @@
 		"format": "biome format --write .",
 		"test": "bun test",
 		"build": "tsup",
-		"jsr:check": "bunx jsr publish --dry-run"
+		"jsr:check": "bunx jsr publish --dry-run --allow-dirty"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.2.2",
