@@ -1,7 +1,10 @@
 import { type EmitFunctions, type FieldConfig, VufForm } from './mod';
 
+type AnyFieldConfig = FieldConfig<unknown>;
+type AnyForm = VufForm<Record<string, AnyFieldConfig>>;
+
 export type VufFormPublicMethods = Pick<
-	VufForm<any>,
+	AnyForm,
 	| 'getFieldObject'
 	| 'getFieldValue'
 	| 'setFieldValue'
@@ -20,7 +23,7 @@ export type VufFormPublicMethods = Pick<
 	| 'groupIsValid'
 >;
 
-export type MethodRecord = Record<string, (...args: any[]) => any>;
+export type MethodRecord = Record<string, (...args: unknown[]) => unknown>;
 
 export type ParentMethods = VufFormPublicMethods & { validate(): boolean };
 
@@ -28,8 +31,103 @@ export type MethodsFactory<M extends MethodRecord> = (
 	parent: ParentMethods,
 ) => M;
 
+export type EmitsFactory<E extends EmitFunctions> = (
+	parent: ParentMethods,
+) => E;
+
+export type CreateForm2Options<
+	M extends MethodRecord,
+	E extends EmitFunctions,
+> = {
+	/** 追加メソッド（parent経由で既存APIにアクセス） */
+	methods?: MethodsFactory<M>;
+	/** anyCondition 等で利用する emits をフォーム生成時に自動登録 */
+	emits?: EmitsFactory<E>;
+};
+
+const createParentMethods = (self: AnyForm): ParentMethods => ({
+	getFieldObject: self.getFieldObject.bind(self),
+	getFieldValue: self.getFieldValue.bind(self),
+	setFieldValue: self.setFieldValue.bind(self),
+	getKey: self.getKey.bind(self),
+	addEmit: self.addEmit.bind(self),
+	removeEmit: self.removeEmit.bind(self),
+	emit: self.emit.bind(self),
+	setData: self.setData.bind(self),
+	getValueJsonStr: self.getValueJsonStr.bind(self),
+	getJson: self.getJson.bind(self),
+	getJsonHeadUpper: self.getJsonHeadUpper.bind(self),
+	getValueJson: self.getValueJson.bind(self),
+	validateWatch: self.validateWatch.bind(self),
+	startValid: self.startValid.bind(self),
+	isErrorField: self.isErrorField.bind(self),
+	groupIsValid: self.groupIsValid.bind(self),
+	validate(): boolean {
+		return self.groupIsValid();
+	},
+});
+
+/**
+ * createForm2:
+ * - `createForm(def, methodsFactory)` の後継
+ * - options で methods/emits をまとめて指定できる
+ */
+export function createForm2<
+	T extends Record<string, AnyFieldConfig>,
+	M extends MethodRecord = Record<never, (...args: never[]) => never>,
+	E extends EmitFunctions = EmitFunctions,
+>(
+	formDefinition: T,
+	options: CreateForm2Options<M, E>,
+): (options?: {
+	emits?: EmitFunctions;
+}) => { [K in keyof T]: T[K]['value'] } & Omit<VufFormPublicMethods, keyof M> &
+	M & { __valueType?: { [K in keyof T]: T[K]['value'] } } {
+	type FormValues = { [K in keyof T]: T[K]['value'] };
+
+	const methodsFactory: MethodsFactory<M> =
+		(options.methods as MethodsFactory<M> | undefined) ??
+		((() => ({}) as M) as MethodsFactory<M>);
+	const emitsFactory: EmitsFactory<E> | undefined = options.emits;
+
+	class FormClass extends VufForm<T> {
+		constructor(options?: { emits?: EmitFunctions }) {
+			super(formDefinition, options);
+			const parent = createParentMethods(this as unknown as AnyForm);
+
+			// methods
+			const methods = methodsFactory(parent);
+			const self = this as unknown as Record<string, unknown>;
+			Object.entries(methods).forEach(([name, method]) => {
+				self[name] = method.bind(this);
+			});
+
+			// emits (definition-time)
+			if (emitsFactory) {
+				const emits = emitsFactory(parent);
+				Object.entries(emits).forEach(([eventName, handler]) => {
+					this.addEmit(
+						eventName,
+						(handler as unknown as (...args: unknown[]) => unknown).bind(this),
+					);
+				});
+			}
+		}
+	}
+
+	type ExtendedForm = FormValues &
+		Omit<VufFormPublicMethods, keyof M> &
+		M & { __valueType?: FormValues };
+	const factory = (options?: { emits?: EmitFunctions }) =>
+		new FormClass(options) as unknown as ExtendedForm;
+	return factory;
+}
+
+/**
+ * @deprecated Use createForm2(formDefinition, { methods }) instead.
+ */
 export function createForm<
-	T extends Record<string, FieldConfig<any>>,
+	T extends Record<string, AnyFieldConfig>,
 	M extends MethodRecord,
 >(
 	formDefinition: T,
@@ -43,36 +141,12 @@ export function createForm<
 	class FormClass extends VufForm<T> {
 		constructor(options?: { emits?: EmitFunctions }) {
 			super(formDefinition, options);
-			const parent = this.createParentMethods();
+			const parent = createParentMethods(this as unknown as AnyForm);
 			const methods = methodsFactory(parent);
+			const self = this as unknown as Record<string, unknown>;
 			Object.entries(methods).forEach(([name, method]) => {
-				(this as any)[name] = method.bind(this);
+				self[name] = method.bind(this);
 			});
-		}
-
-		private createParentMethods(): ParentMethods {
-			const self = this;
-			return {
-				getFieldObject: this.getFieldObject.bind(this),
-				getFieldValue: this.getFieldValue.bind(this),
-				setFieldValue: this.setFieldValue.bind(this),
-				getKey: this.getKey.bind(this),
-				addEmit: this.addEmit.bind(this),
-				removeEmit: this.removeEmit.bind(this),
-				emit: this.emit.bind(this),
-				setData: this.setData.bind(this),
-				getValueJsonStr: this.getValueJsonStr.bind(this),
-				getJson: this.getJson.bind(this),
-				getJsonHeadUpper: this.getJsonHeadUpper.bind(this),
-				getValueJson: this.getValueJson.bind(this),
-				validateWatch: this.validateWatch.bind(this),
-				startValid: this.startValid.bind(this),
-				isErrorField: this.isErrorField.bind(this),
-				groupIsValid: this.groupIsValid.bind(this),
-				validate(): boolean {
-					return self.groupIsValid();
-				},
-			};
 		}
 	}
 
