@@ -45,6 +45,12 @@ export type CreateForm2Options<
 	emits?: EmitsFactory<E>;
 };
 
+type VufFormFactory<ExtendedForm> = ((options?: {
+	emits?: EmitFunctions;
+}) => ExtendedForm) & {
+	gen: (options?: { emits?: EmitFunctions }) => ExtendedForm;
+};
+
 const createParentMethods = (self: AnyForm): ParentMethods => ({
 	getFieldObject: self.getFieldObject.bind(self),
 	getFieldValue: self.getFieldValue.bind(self),
@@ -79,10 +85,10 @@ export function createForm2<
 >(
 	formDefinition: T,
 	options: CreateForm2Options<M, E>,
-): (options?: {
-	emits?: EmitFunctions;
-}) => { [K in keyof T]: T[K]['value'] } & Omit<VufFormPublicMethods, keyof M> &
-	M & { __valueType?: { [K in keyof T]: T[K]['value'] } } {
+): VufFormFactory<
+	{ [K in keyof T]: T[K]['value'] } & Omit<VufFormPublicMethods, keyof M> &
+		M & { __valueType?: { [K in keyof T]: T[K]['value'] } }
+> {
 	type FormValues = { [K in keyof T]: T[K]['value'] };
 
 	const methodsFactory: MethodsFactory<M> =
@@ -118,8 +124,16 @@ export function createForm2<
 	type ExtendedForm = FormValues &
 		Omit<VufFormPublicMethods, keyof M> &
 		M & { __valueType?: FormValues };
-	const factory = (options?: { emits?: EmitFunctions }) =>
-		new FormClass(options) as unknown as ExtendedForm;
+	const factory = ((options?: { emits?: EmitFunctions }) =>
+		new FormClass(
+			options,
+		) as unknown as ExtendedForm) as VufFormFactory<ExtendedForm>;
+	// vuf のネストフォーム生成（setData）互換のため、factory に gen を生やす
+	// - setData 側が `.gen()` を呼ぶ前提なので、factory 自体を渡せるようにする
+	factory.gen = (options?: { emits?: EmitFunctions }) => factory(options);
+	// `prototype instanceof VufForm` 判定も通す（setData のネスト判定用）
+	(factory as unknown as { prototype: unknown }).prototype =
+		FormClass.prototype;
 	return factory;
 }
 

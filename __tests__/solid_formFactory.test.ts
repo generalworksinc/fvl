@@ -142,4 +142,50 @@ describe('createForm (solidjs/formFactory.ts)', () => {
 			expect(form.validateAll()).toBe(true);
 		});
 	});
+
+	test('createForm2: factory.gen で生成でき、setData のネスト生成で factory を type に渡せる', () => {
+		createRoot(() => {
+			const ChildFormFactory = createForm2(
+				{
+					name: field({ value: '', name: 'Name', validate: [required()] }),
+				},
+				{
+					methods: (parent: any) => ({
+						validateAll() {
+							return parent.groupIsValid();
+						},
+					}),
+				},
+			);
+
+			// gen が生えている
+			const childFromGen: any = ChildFormFactory.gen();
+			expect(typeof childFromGen.validateAll).toBe('function');
+
+			// 親フォーム: ネストフォームの type に Factory をそのまま渡す
+			const ParentFormFactory = createForm2(
+				{
+					child: field({
+						value: null as any,
+						name: 'Child',
+						validate: [],
+						type: ChildFormFactory as any,
+					}),
+				},
+				{
+					methods: () => ({}),
+				},
+			);
+
+			const parent: any = ParentFormFactory();
+			parent.setData({ child: { name: 'OK' } });
+
+			const nested: any = parent.getFieldValue('child');
+			expect(nested).toBeTruthy();
+			expect(typeof nested.validateAll).toBe('function');
+			expect(nested.name).toBe('OK');
+			nested.startValid();
+			expect(nested.validateAll()).toBe(true);
+		});
+	});
 });

@@ -1,6 +1,6 @@
 {
 	"name": "@generalworks/vuf",
-	"version": "1.1.0",
+	"version": "1.1.1",
 	"type": "module",
 	"exports": {
 		".": "./dist/core/index.js",
@@ -32,7 +32,9 @@
 		"format": "biome format --write .",
 		"test": "bun test",
 		"build": "tsup",
-		"jsr:check": "bunx jsr publish --dry-run --allow-dirty"
+		"jsr:check": "bunx jsr publish --dry-run --allow-dirty",
+		"fix": "bun run lint:fix && bun run format",
+		"check": "bun run lint && bun run typecheck && bun run jsr:check"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.2.2",
