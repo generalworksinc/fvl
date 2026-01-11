@@ -15,7 +15,7 @@ const validatorRegistry: Record<string, ValidatorFunction> = {
 
 const messagesRegistry: Record<string, Record<string, string>> = {
 	...baseMessages,
-} as any;
+};
 
 let currentLocale: string = Object.keys(messagesRegistry)[0] || 'ja';
 

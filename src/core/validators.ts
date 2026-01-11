@@ -25,7 +25,8 @@ const validators: Record<string, ValidatorFunction> = {
 		message: string,
 	): boolean => {
 		if (value == null || value === '') return true;
-		return form.emit(funcName, value, message);
+		// emit の返り値は本来 any/unknown。バリデーションとしては truthy/falsey を boolean に寄せる。
+		return Boolean(form.emit(funcName, value, message));
 	},
 	sameAs: (): boolean => {
 		throw Error('sameAs is not implemented');

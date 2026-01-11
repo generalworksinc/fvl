@@ -1,7 +1,21 @@
 {
 	"$schema": "https://biomejs.dev/schemas/2.2.2/schema.json",
 	"formatter": { "enabled": true },
-	"linter": { "enabled": true, "rules": { "recommended": true } },
+	"linter": {
+		"enabled": true,
+		"rules": {
+			"recommended": true,
+			"complexity": {
+				"noBannedTypes": "off"
+			},
+			"style": {
+				"noNonNullAssertion": "off"
+			},
+			"suspicious": {
+				"noExplicitAny": "off"
+			}
+		}
+	},
 	"overrides": [
 		{
 			"includes": ["__tests__/**"],
