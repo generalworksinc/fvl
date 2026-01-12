@@ -521,14 +521,18 @@ export type VufFormPublicMethods = Pick<
 // unknown[] 制約だと代入が厳しすぎる。Vue 版 createForm2 では any[] で許容する。
 export type MethodRecord = Record<string, (...args: any[]) => any>;
 
-export type ParentMethods = VufFormPublicMethods & { validate(): boolean };
+export type ParentMethods<
+	TValues extends Record<string, unknown> = Record<string, unknown>,
+> = VufFormPublicMethods & TValues & { validate(): boolean };
 
-export type MethodsFactory<M extends MethodRecord> = (
-	parent: ParentMethods,
-) => M;
-export type EmitsFactory<E extends EmitFunctions> = (
-	parent: ParentMethods,
-) => E;
+export type MethodsFactory<
+	M extends MethodRecord,
+	TValues extends Record<string, unknown> = Record<string, unknown>,
+> = (parent: ParentMethods<TValues>) => M;
+export type EmitsFactory<
+	E extends EmitFunctions,
+	TValues extends Record<string, unknown> = Record<string, unknown>,
+> = (parent: ParentMethods<TValues>) => E;
 
 export type CreateForm2Options<
 	M extends MethodRecord,
@@ -569,6 +573,42 @@ const createParentMethods = (self: AnyForm): ParentMethods => ({
 });
 
 /**
+ * createParentProxy:
+ * - parent.xxx を self.getFieldValue('xxx') にマップ
+ * - parent.xxx = v を self.setFieldValue('xxx', v) にマップ
+ * - ただし parent の既存メソッド名はそのまま解決する
+ */
+const createParentProxy = <TValues extends Record<string, unknown>>(
+	self: AnyForm,
+	parent: ParentMethods<TValues>,
+): ParentMethods<TValues> => {
+	return new Proxy(parent, {
+		get(target, prop) {
+			if (typeof prop !== 'string') return (target as any)[prop];
+			if (prop in target) return (target as any)[prop];
+			// JS 組み込み（toString など）はフィールド解決しない
+			if (prop in Object.prototype) {
+				const v = (Object.prototype as any)[prop];
+				return typeof v === 'function' ? v.bind(target) : v;
+			}
+			return self.getFieldValue(prop);
+		},
+		set(target, prop, value) {
+			if (typeof prop !== 'string') {
+				(target as any)[prop] = value;
+				return true;
+			}
+			if (prop in target) {
+				(target as any)[prop] = value;
+				return true;
+			}
+			self.setFieldValue(prop, value);
+			return true;
+		},
+	});
+};
+
+/**
  * createForm2:
  * - `createForm(def, methodsFactory)` の後継（Vue）
  * - options で methods/emits をまとめて指定できる
@@ -586,15 +626,22 @@ export function createForm2<
 > {
 	type FormValues = { [K in keyof T]: T[K]['value'] };
 
-	const methodsFactory: MethodsFactory<M> =
+	const methodsFactory: MethodsFactory<M, FormValues> =
 		(options.methods as MethodsFactory<M> | undefined) ??
-		((() => ({}) as M) as MethodsFactory<M>);
-	const emitsFactory: EmitsFactory<E> | undefined = options.emits;
+		((() => ({}) as M) as MethodsFactory<M, FormValues>);
+	const emitsFactory: EmitsFactory<E, FormValues> | undefined = options.emits as
+		| EmitsFactory<E, FormValues>
+		| undefined;
 
 	class FormClass extends VufForm<T> {
 		constructor(options?: { emits?: EmitFunctions }) {
 			super(formDefinition, options);
-			const parent = createParentMethods(this as unknown as AnyForm);
+			const parent = createParentProxy<FormValues>(
+				this as unknown as AnyForm,
+				createParentMethods(
+					this as unknown as AnyForm,
+				) as ParentMethods<FormValues>,
+			);
 
 			// methods
 			const methods = methodsFactory(parent);

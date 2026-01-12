@@ -14,10 +14,7 @@ describe('createForm2 (vue/mod.ts)', () => {
 						return parent.groupIsValid();
 					},
 					upperTitle() {
-						parent.setFieldValue(
-							'title',
-							String(parent.getFieldValue('title')).toUpperCase(),
-						);
+						parent.title = String(parent.title).toUpperCase();
 					},
 				}),
 			},
@@ -45,7 +42,7 @@ describe('createForm2 (vue/mod.ts)', () => {
 			{
 				emits: (parent: any) => ({
 					taxNumCheck(value: any) {
-						void parent.getFieldValue('tax');
+						void parent.tax;
 						return String(value) === 'OK';
 					},
 				}),
