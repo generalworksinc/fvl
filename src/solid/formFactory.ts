@@ -23,7 +23,8 @@ export type VufFormPublicMethods = Pick<
 	| 'groupIsValid'
 >;
 
-export type MethodRecord = Record<string, (...args: unknown[]) => unknown>;
+// Vue 版と同じく、methods では実用上引数を具体化して使うため any[] を許容する。
+export type MethodRecord = Record<string, (...args: any[]) => any>;
 
 export type ParentMethods = VufFormPublicMethods & { validate(): boolean };
 
