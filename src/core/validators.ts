@@ -28,8 +28,28 @@ const validators: Record<string, ValidatorFunction> = {
 		// emit の返り値は本来 any/unknown。バリデーションとしては truthy/falsey を boolean に寄せる。
 		return Boolean(form.emit(funcName, value, message));
 	},
-	sameAs: (): boolean => {
-		throw Error('sameAs is not implemented');
+	sameAs: (value: any, form: IVufForm, fieldName: string): boolean => {
+		if (value == null || value === '') return true;
+
+		const normalizedFieldName = String(fieldName || '');
+		const json = (
+			form.getJson as (options?: unknown) => Record<string, unknown>
+		)({
+			isIgnoreBlank: false,
+		});
+
+		if (Object.hasOwn(json, normalizedFieldName)) {
+			return value === json[normalizedFieldName];
+		}
+
+		const formWithAccessors = form as IVufForm & {
+			getFieldValue?: (key: string) => unknown;
+		};
+		if (typeof formWithAccessors.getFieldValue === 'function') {
+			return value === formWithAccessors.getFieldValue(normalizedFieldName);
+		}
+
+		return false;
 	},
 	integer: (value: any): boolean => {
 		try {

@@ -1,6 +1,12 @@
 import { describe, expect, test } from 'bun:test';
 
-import { anyCondition, createForm2, field, required } from '../src/vue/mod.ts';
+import {
+	anyCondition,
+	createForm2,
+	field,
+	required,
+	sameAs,
+} from '../src/vue/mod.ts';
 
 describe('createForm2 (vue/mod.ts)', () => {
 	test('親メソッドを使って validate を実装し、拡張メソッドとして利用できる', () => {
@@ -55,6 +61,34 @@ describe('createForm2 (vue/mod.ts)', () => {
 		expect(form.groupIsValid(['tax'])).toBe(false);
 		form.setFieldValue('tax', 'OK');
 		expect(form.groupIsValid(['tax'])).toBe(true);
+	});
+
+	test('sameAs で同一フォーム内の別フィールドと比較できる', () => {
+		const factory = createForm2(
+			{
+				email: field({ value: '', name: 'Email', validate: [required()] }),
+				email2: field({
+					value: '',
+					name: 'Email Confirm',
+					validate: [required(), sameAs('email')],
+				}),
+			},
+			{
+				methods: (parent: any) => ({
+					validateConfirm() {
+						return parent.groupIsValid(['email', 'email2']);
+					},
+				}),
+			},
+		);
+
+		const form: any = factory();
+		form.startValid();
+		form.email = 'test@example.com';
+		form.email2 = 'other@example.com';
+		expect(form.validateConfirm()).toBe(false);
+		form.email2 = 'test@example.com';
+		expect(form.validateConfirm()).toBe(true);
 	});
 
 	test('factory.gen で生成でき、setData のネスト生成で factory を type に渡せる', () => {

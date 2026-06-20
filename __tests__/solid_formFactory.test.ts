@@ -27,7 +27,7 @@ const effects = new Set<Function>();
 };
 
 import { createForm, createForm2 } from '../src/solid/formFactory.ts';
-import { anyCondition, field, required } from '../src/solid/mod.ts';
+import { anyCondition, field, required, sameAs } from '../src/solid/mod.ts';
 
 describe('createForm (solidjs/formFactory.ts)', () => {
 	beforeEach(() => {
@@ -116,6 +116,36 @@ describe('createForm (solidjs/formFactory.ts)', () => {
 			expect(form.groupIsValid(['tax'])).toBe(false);
 			form.setFieldValue('tax', 'OK');
 			expect(form.groupIsValid(['tax'])).toBe(true);
+		});
+	});
+
+	test('createForm2: sameAs で同一フォーム内の別フィールドと比較できる', () => {
+		createRoot(() => {
+			const factory = createForm2(
+				{
+					email: field({ value: '', name: 'Email', validate: [required()] }),
+					email2: field({
+						value: '',
+						name: 'Email Confirm',
+						validate: [required(), sameAs('email')],
+					}),
+				},
+				{
+					methods: (parent: any) => ({
+						validateConfirm() {
+							return parent.groupIsValid(['email', 'email2']);
+						},
+					}),
+				},
+			);
+
+			const form: any = factory();
+			form.startValid();
+			form.email = 'test@example.com';
+			form.email2 = 'other@example.com';
+			expect(form.validateConfirm()).toBe(false);
+			form.email2 = 'test@example.com';
+			expect(form.validateConfirm()).toBe(true);
 		});
 	});
 

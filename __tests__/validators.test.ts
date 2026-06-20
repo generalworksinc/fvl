@@ -166,8 +166,41 @@ describe('validators', () => {
 	});
 
 	describe('sameAs', () => {
-		test('未実装のため例外をスローする', () => {
-			expect(() => validators.sameAs('x', mockForm as any)).toThrow();
+		test('指定フィールドの値と一致する場合はtrueを返す', () => {
+			const form = {
+				...mockForm,
+				getFieldValue: (key: string) =>
+					key === 'email' ? 'test@example.com' : undefined,
+			};
+
+			expect(validators.sameAs('test@example.com', form as any, 'email')).toBe(
+				true,
+			);
+			expect(validators.sameAs('other@example.com', form as any, 'email')).toBe(
+				false,
+			);
+		});
+
+		test('空値の場合は他のrequired等に委ねるためtrueを返す', () => {
+			expect(validators.sameAs('', mockForm as any, 'email')).toBe(true);
+			expect(validators.sameAs(null, mockForm as any, 'email')).toBe(true);
+		});
+
+		test('getJsonからも対象値を解決できる', () => {
+			const form = {
+				...mockForm,
+				getJson: () => ({ email: 'json@example.com' }),
+			};
+
+			expect(validators.sameAs('json@example.com', form as any, 'email')).toBe(
+				true,
+			);
+		});
+
+		test('指定フィールド名が存在しない場合はfalseを返す', () => {
+			expect(validators.sameAs('x', mockForm as any, 'signupForm.email')).toBe(
+				false,
+			);
 		});
 	});
 });
