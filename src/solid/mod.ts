@@ -18,7 +18,11 @@ import { getMessages, getValidatorMap, makeRule } from '../core/mod';
 
 export * from './formFactory';
 
-export type ValidateList = Array<string | [string, ...any[]]>;
+export type ValidatorRule = [string, ...any[]];
+// バリデータは必ず呼び出して使う（例: required(), maxLength(50)）。
+// 関数参照のまま validate に渡すと検証されないため、型レベルで禁止する。
+export type ValidatorRuleFactory = (...params: any[]) => ValidatorRule;
+export type ValidateList = Array<string | ValidatorRule>;
 /** 単一フィールドの検証状態 */
 export interface Validator {
 	error: boolean;
@@ -300,7 +304,14 @@ export class VufForm<T extends Record<string, FieldConfig<any>>> {
 			let params: any[] = [];
 			let validStr = '';
 			if (typeof validator === 'string') validStr = validator;
-			else {
+			else if (typeof validator === 'function') {
+				// 関数参照のまま渡された場合は検証できない。呼び出し忘れを検知して知らせる。
+				console.error(
+					`validate error: field "${fieldName}" のバリデータに関数参照が渡されています。` +
+						'required() / maxLength(n) のように呼び出した結果を渡してください。',
+				);
+				continue;
+			} else {
 				validStr = (validator as any)[0];
 				params = (validator as any).slice(1);
 			}
@@ -422,17 +433,17 @@ export function field<T>(config: FieldConfig<T>): FieldConfig<T> {
 	return { ...config } as FieldConfig<T>;
 }
 
-const validatorMapForForm: Record<
-	string,
-	(...params: any[]) => [string, ...any[]]
-> = {};
+const validatorMapForForm: Record<string, ValidatorRuleFactory> = {};
 Object.keys(getValidatorMap()).forEach((validatorName) => {
 	validatorMapForForm[validatorName] = (...params: any[]) =>
-		makeRule(validatorName)(...params) as [string, ...any[]];
+		makeRule(validatorName)(...params) as ValidatorRule;
 });
 
-export const maxLength = validatorMapForForm.maxLength!;
-export const required = validatorMapForForm.required!;
-export const anyCondition = validatorMapForForm.anyCondition!;
-export const sameAs = validatorMapForForm.sameAs!;
-export const isEmail = validatorMapForForm.isEmail!;
+// NOTE: 明示的に ValidatorRuleFactory を注釈することで、配布 d.ts が any に
+// 落ちず、validate: [required] のような関数参照の渡し漏れがコンパイルエラーになる。
+export const maxLength: ValidatorRuleFactory = validatorMapForForm.maxLength!;
+export const required: ValidatorRuleFactory = validatorMapForForm.required!;
+export const anyCondition: ValidatorRuleFactory =
+	validatorMapForForm.anyCondition!;
+export const sameAs: ValidatorRuleFactory = validatorMapForForm.sameAs!;
+export const isEmail: ValidatorRuleFactory = validatorMapForForm.isEmail!;

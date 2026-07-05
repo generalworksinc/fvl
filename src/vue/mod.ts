@@ -7,7 +7,11 @@ import { getMessages, getValidatorMap, makeRule } from '../core/mod';
 // フォーム抽象（FieldObject, VufForm）を Vue 向けアダプタ層で利用するための型定義。
 // コアはフレームワーク非依存だが、ここでは watch の扱いなど Vue 寄りの表現を用いる。
 
-export type ValidateList = Array<string | [string, ...any[]]>;
+export type ValidatorRule = [string, ...any[]];
+// バリデータは必ず呼び出して使う（例: required(), maxLength(50)）。
+// 関数参照のまま validate に渡すと検証されないため、型レベルで禁止する。
+export type ValidatorRuleFactory = (...params: any[]) => ValidatorRule;
+export type ValidateList = Array<string | ValidatorRule>;
 
 export interface Validator {
 	error: boolean;
@@ -383,7 +387,14 @@ export class VufForm<T extends Record<string, FieldObject<any>>> {
 			let params: any[] = [];
 			let validStr = '';
 			if (typeof validator === 'string') validStr = validator;
-			else if (validator && (validator as any).length > 0) {
+			else if (typeof validator === 'function') {
+				// 関数参照のまま渡された場合は検証できない。呼び出し忘れを検知して知らせる。
+				console.error(
+					`validate error: field "${fieldName}" のバリデータに関数参照が渡されています。` +
+						'required() / maxLength(n) のように呼び出した結果を渡してください。',
+				);
+				continue;
+			} else if (validator && (validator as any).length > 0) {
 				validStr = (validator as any)[0];
 				params = (validator as any).slice(1);
 			}
@@ -474,21 +485,21 @@ export function field<T>(config: FieldConfig<T>): FieldObject<T> {
 }
 
 // validators を [name, ...params] 形式で使いやすくするマップ
-const validatorMapForForm: Record<
-	string,
-	(...params: any[]) => [string, ...any[]]
-> = {};
+const validatorMapForForm: Record<string, ValidatorRuleFactory> = {};
 Object.keys(getValidatorMap()).forEach((validatorName) => {
 	validatorMapForForm[validatorName] = (...params: any[]) =>
-		makeRule(validatorName)(...params) as [string, ...any[]];
+		makeRule(validatorName)(...params) as ValidatorRule;
 });
 
 // 代表的なものをエクスポート（全量必要なら利用側で Object から参照も可能）
-export const maxLength = validatorMapForForm.maxLength!;
-export const required = validatorMapForForm.required!;
-export const anyCondition = validatorMapForForm.anyCondition!;
-export const sameAs = validatorMapForForm.sameAs!;
-export const isEmail = validatorMapForForm.isEmail!;
+// NOTE: 明示的に ValidatorRuleFactory を注釈することで、配布 d.ts が any に
+// 落ちず、validate: [required] のような関数参照の渡し漏れがコンパイルエラーになる。
+export const maxLength: ValidatorRuleFactory = validatorMapForForm.maxLength!;
+export const required: ValidatorRuleFactory = validatorMapForForm.required!;
+export const anyCondition: ValidatorRuleFactory =
+	validatorMapForForm.anyCondition!;
+export const sameAs: ValidatorRuleFactory = validatorMapForForm.sameAs!;
+export const isEmail: ValidatorRuleFactory = validatorMapForForm.isEmail!;
 
 // ----------------------------
 // createForm2（Vue）
