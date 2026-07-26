@@ -212,6 +212,26 @@ for (const [label, mod] of adapters) {
 			expect(f.isErrorField('b')).toBe(false);
 		});
 
+		test('メッセージの {param} はフィールドの表示名に補間される（ルール名ではない）', () => {
+			// ja の sameAs 既定文言は「※{param}が間違っているようです。」。
+			// {param} はルール名 'sameAs' ではなくフィールドの表示名(name)に置換されるべき。
+			const f: any = new VufForm({
+				email: field({ value: '', name: 'メール', validate: [] }),
+				email2: field({
+					value: '',
+					name: 'メールアドレス（確認用）',
+					validate: [sameAs('email')],
+				}),
+			});
+			f.startValid();
+			f.email = 'a@b.co';
+			f.email2 = 'x@y.co';
+			expect(f.isErrorField('email2')).toBe(true);
+			const msg = f.getFieldObject('email2').validator.message;
+			expect(msg).toBe('※メールアドレス（確認用）が間違っているようです。');
+			expect(msg).not.toContain('sameAs');
+		});
+
 		test('anyCondition: emit を呼び、カスタムメッセージを表示', () => {
 			const custom = jest.fn((v: any) => v === 'OK');
 			const f: any = new VufForm(
@@ -230,6 +250,32 @@ for (const [label, mod] of adapters) {
 			expect(custom).toHaveBeenCalledWith('v', 'NGだよ');
 			f.x = 'OK';
 			expect(f.isErrorField('x')).toBe(false);
+		});
+
+		test('anyCondition: 空値でも検証をスキップせずハンドラで判定する', () => {
+			// 旧 vuf 互換。空パスワードでも「8文字以上」チェックが走り、ハンドラが false → エラーになる。
+			const min8 = jest.fn((v: any) => String(v ?? '').length >= 8);
+			const f: any = new VufForm(
+				{
+					pw: field({
+						value: '',
+						name: 'パスワード',
+						validate: [
+							anyCondition('min8', 'パスワードは8文字以上で入力してください。'),
+						],
+					}),
+				},
+				{ emits: { min8 } },
+			);
+			f.startValid();
+			// 空 → スキップされず、ハンドラが false → エラー
+			expect(f.isErrorField('pw')).toBe(true);
+			expect(f.getFieldObject('pw').validator.message).toBe(
+				'パスワードは8文字以上で入力してください。',
+			);
+			// 8 文字以上 → OK
+			f.pw = '12345678';
+			expect(f.isErrorField('pw')).toBe(false);
 		});
 
 		test('groupIsValid: フラット', () => {

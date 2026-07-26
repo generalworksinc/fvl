@@ -322,10 +322,11 @@ export function coreIsErrorField<TField extends CoreField>(
 			[name, ...params] = rule;
 		}
 		const validate = validators[name];
-		// メッセージ補間: {param}=ルール名、{0}{1}…=各パラメータ。辞書に無ければ汎用文言。
+		// メッセージ補間: {param}=フィールドの表示名(field.name)、{0}{1}…=各パラメータ。
+		// 表示名が未設定ならフィールドキーで代替する。辞書に無ければ汎用文言。
 		let message = messages[name] ?? `Validation error: ${name}`;
 		if (messages[name]) {
-			message = message.replace('{param}', name);
+			message = message.replace('{param}', field.name ?? fieldName);
 			for (const index in params) {
 				message = message.replace(`{${index}}`, params[index]);
 			}

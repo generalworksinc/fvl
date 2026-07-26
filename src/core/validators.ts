@@ -26,7 +26,9 @@ const validators: Record<string, ValidatorFunction> = {
 		funcName: string,
 		message: string,
 	): boolean => {
-		if (value == null || value === '') return true;
+		// 空値でも検証をスキップしない（旧 vuf 互換）。空の扱い（必須にするか否か）は
+		// 呼び出し側の emit ハンドラが決める。例: checkBlankOrMin8 は空なら false を返して
+		// 「パスワードは8文字以上」を出す。ここで空をスキップすると空パスワードが素通りしてしまう。
 		// emit の返り値は本来 any/unknown。バリデーションとしては truthy/falsey を boolean に寄せる。
 		return Boolean(form.emit(funcName, value, message));
 	},
