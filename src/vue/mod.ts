@@ -1,39 +1,33 @@
 import { reactive, watch as vueWatch } from 'vue';
+import {
+	coreGetJsonHeadUpper,
+	coreGetValueJson,
+	coreGroupIsValid,
+	coreIsErrorField,
+	coreSetData,
+	coreStartNested,
+	type EmitFunction,
+	type EmitFunctions,
+	type FieldAccessor,
+	type FieldConfig,
+	type GetValueJsonOptions,
+	makeRandomKey,
+	type Validator,
+	type ValidatorRule,
+	type ValidatorRuleFactory,
+} from '../core/form';
 import { getMessages, getValidatorMap, makeRule } from '../core/mod';
 
-// ----------------------------
-// 型定義（Vue アダプタ専用）
-// ----------------------------
-// フォーム抽象（FieldObject, VufForm）を Vue 向けアダプタ層で利用するための型定義。
-// コアはフレームワーク非依存だが、ここでは watch の扱いなど Vue 寄りの表現を用いる。
-
-export type ValidatorRule = [string, ...any[]];
-// バリデータは必ず呼び出して使う（例: required(), maxLength(50)）。
-// 関数参照のまま validate に渡すと検証されないため、型レベルで禁止する。
-export type ValidatorRuleFactory = (...params: any[]) => ValidatorRule;
-export type ValidateList = Array<string | ValidatorRule>;
-
-export interface Validator {
-	error: boolean;
-	message: string;
-}
-
-export type FieldConfig<T = any, U = any> = {
-	value: T;
-	// 表示名（メッセージ生成などで使用）
-	name?: string;
-	validate?: ValidateList;
-	// 値の型変換のためのコンストラクタ。
-	// Number を指定した場合は getValueJson 時に数値化を試みる（NaN は null にフォールバック）。
-	type?:
-		| NumberConstructor
-		| StringConstructor
-		| DateConstructor
-		| ArrayConstructor
-		| any;
-	subType?: U;
-	[key: string]: any;
-};
+export type {
+	EmitFunction,
+	EmitFunctions,
+	FieldConfig,
+	GetValueJsonOptions,
+	ValidateList,
+	Validator,
+	ValidatorRule,
+	ValidatorRuleFactory,
+} from '../core/form';
 
 export interface FieldObject<T = any> extends FieldConfig<T> {
 	// バリデーション結果（エラー有無とメッセージ）
@@ -46,17 +40,12 @@ export interface FieldObject<T = any> extends FieldConfig<T> {
 	id?: string;
 }
 
-export type EmitFunction = (...args: any[]) => any;
-export interface EmitFunctions {
-	[eventName: string]: EmitFunction;
-}
-
-export interface GetValueJsonOptions {
-	keys?: string[];
-	exceptKeys?: string[];
-	format?: ((key: string) => string) | null;
-	isIgnoreBlank?: boolean;
-}
+const fieldAccessor: FieldAccessor<FieldObject<any>> = {
+	read: (field) => field.value,
+	write: (field, value) => {
+		field.value = value;
+	},
+};
 
 // Vue の watch を直接利用する方針のため、外部注入は廃止
 
@@ -68,24 +57,6 @@ export interface GetValueJsonOptions {
 const KEY_FORM = Symbol('$form');
 const KEY_RANDOM = Symbol('$key');
 const KEY_EMITS = Symbol('$emits');
-
-// 先頭のみを小文字/大文字にするユーティリティ（キー変換用）
-const headLower = (s: string): string =>
-	s ? s[0].toLowerCase() + s.slice(1) : s;
-const headUpper = (s: string): string =>
-	s ? s[0].toUpperCase() + s.slice(1) : s;
-
-// フォームやフィールドに割り当てるユニークなキーを生成。
-// 時刻成分 + カウンタを組み合わせ、同一プロセス内での衝突を避ける。
-const randomKey = (() => {
-	let atomicKeyIndex = Math.floor(Math.random() * 1000000);
-	const COUNTER_PART = 100000000;
-	return (): number => {
-		atomicKeyIndex = (atomicKeyIndex + 1) % COUNTER_PART;
-		const timeComponent = Date.now() % 10000000000;
-		return timeComponent * COUNTER_PART + atomicKeyIndex;
-	};
-})();
 
 // 内部で扱うフィールドマップ型（キーは動的）
 type FieldsMap = Record<string, FieldObject<any>>;
@@ -100,8 +71,8 @@ function isVufFormInstance(value: unknown): value is VufForm<any> {
 }
 
 // コンストラクタが VufForm 由来かどうかの型ガード
-type VufFormCtor = { gen: () => VufForm<any>; prototype: unknown };
-function isVufFormConstructor(value: unknown): value is VufFormCtor {
+type VufFormConstructor = { gen: () => VufForm<any>; prototype: unknown };
+function isVufFormConstructor(value: unknown): value is VufFormConstructor {
 	return (
 		!!value &&
 		typeof (value as any).gen === 'function' &&
@@ -120,6 +91,8 @@ export class VufForm<T extends Record<string, FieldObject<any>>> {
 	private _fields: T;
 
 	$startValid: boolean = false;
+	// validateWatch で再帰的に監視済みのサブフォームを記録し、二重登録を防ぐ。
+	private _watchedNested = new WeakSet<VufForm<any>>();
 	[KEY_RANDOM]: { value: number; name: string };
 	[KEY_EMITS]: EmitFunctions;
 
@@ -139,7 +112,7 @@ export class VufForm<T extends Record<string, FieldObject<any>>> {
 				obj.validator = { error: false, message: '' };
 				obj[KEY_FORM] = this as unknown as VufForm<any>;
 				// id 未指定なら自動採番
-				if (!obj.id) obj.id = `${key}_${randomKey()}`;
+				if (!obj.id) obj.id = `${key}_${makeRandomKey()}`;
 				this._fields[key as keyof T] = obj as T[keyof T];
 				const k = key as keyof T;
 				Object.defineProperty(this, key, {
@@ -159,7 +132,7 @@ export class VufForm<T extends Record<string, FieldObject<any>>> {
 			}
 		}
 		// 内部キーとイベントマップを初期化
-		this[KEY_RANDOM] = { value: randomKey(), name: '$key' };
+		this[KEY_RANDOM] = { value: makeRandomKey(), name: '$key' };
 		this[KEY_EMITS] = options?.emits || {};
 		// watch は Vue の実装を直接利用（外部注入は廃止）
 	}
@@ -184,48 +157,13 @@ export class VufForm<T extends Record<string, FieldObject<any>>> {
 		obj: Record<string, any> | null,
 		keyAndFunc?: Record<string, (value: any) => void>,
 	): void {
-		// 外部オブジェクトを受け取り、キー整形後に各フィールドに代入。
-		// 値が VufForm の場合は再帰的に setData、配列 + subType が VufForm の場合は要素ごとに生成。
-		if (!obj) return;
-		for (const key in obj) {
-			const formattedKey = headLower(key);
-			let setFunc: Function | undefined = (value: any) => {
-				const k = formattedKey as keyof T;
-				if (
-					Object.hasOwn(this._fields, formattedKey) &&
-					this._fields[k] !== undefined
-				) {
-					const thisField = this._fields[k] as unknown as FieldObject<any>;
-					if (value && isVufFormConstructor(thisField.type)) {
-						const vufFormInstance = thisField.type.gen();
-						vufFormInstance.setData(value);
-						thisField.value = vufFormInstance;
-					} else if (
-						value &&
-						Array.isArray(value) &&
-						thisField.type === Array &&
-						thisField.subType &&
-						isVufFormConstructor(thisField.subType)
-					) {
-						const elmArray: VufForm<any>[] = [];
-						for (const elm of value) {
-							const vufFormInstance = thisField.subType.gen();
-							vufFormInstance.setData(elm);
-							elmArray.push(vufFormInstance);
-						}
-						thisField.value = elmArray;
-					} else {
-						thisField.value = value;
-					}
-				}
-			};
-			if (keyAndFunc) {
-				if (Object.hasOwn(keyAndFunc, formattedKey))
-					setFunc = keyAndFunc[formattedKey];
-				else if (Object.hasOwn(keyAndFunc, key)) setFunc = keyAndFunc[key];
-			}
-			setFunc?.(obj[key]);
-		}
+		coreSetData(
+			this._fields as unknown as FieldsMap,
+			fieldAccessor,
+			obj,
+			keyAndFunc,
+			isVufFormConstructor,
+		);
 	}
 
 	getValueJsonStr(options: GetValueJsonOptions = {}): string {
@@ -239,43 +177,16 @@ export class VufForm<T extends Record<string, FieldObject<any>>> {
 	}
 
 	getJsonHeadUpper(options: GetValueJsonOptions = {}): Record<string, any> {
-		// 抽出結果のキー先頭を大文字化して返却。
-		const newObj = this.getValueJson(options);
-		const retObj: Record<string, any> = {};
-		for (const key in newObj) {
-			if (Object.hasOwn(newObj, key))
-				retObj[headUpper(key)] = (newObj as any)[key];
-		}
-		return retObj;
+		return coreGetJsonHeadUpper(this.getValueJson(options));
 	}
 
-	getValueJson({
-		keys = [],
-		exceptKeys = [],
-		format = null,
-		isIgnoreBlank = true,
-	}: GetValueJsonOptions): Record<string, any> {
-		// keys/exceptKeys で抽出対象を制御。値は extractData 経由で型変換（formatValue）される。
-		let targetKeys: string[];
-		if (keys && keys.length > 0) targetKeys = keys;
-		else {
-			targetKeys = Object.keys(this._fields as Record<string, unknown>);
-			if (exceptKeys && exceptKeys.length > 0)
-				targetKeys = targetKeys.filter((key) => exceptKeys.indexOf(key) < 0);
-		}
-		const filteredObj: Record<string, FieldObject<any>> = {};
-		targetKeys.forEach((key) => {
-			const k = key as keyof T;
-			if (this._fields[k])
-				filteredObj[key] = this._fields[k] as unknown as FieldObject<any>;
-		});
-		const result = extractData(filteredObj, isIgnoreBlank);
-		if (format) {
-			const formattedResult: Record<string, any> = {};
-			for (const key in result) formattedResult[format(key)] = result[key];
-			return formattedResult;
-		}
-		return result;
+	getValueJson(options: GetValueJsonOptions): Record<string, any> {
+		return coreGetValueJson(
+			this._fields as unknown as FieldsMap,
+			fieldAccessor,
+			options,
+			isVufFormInstance,
+		);
 	}
 
 	validateWatch(isValidateImmediately = false): void {
@@ -285,18 +196,61 @@ export class VufForm<T extends Record<string, FieldObject<any>>> {
 		);
 		for (const key of keys) {
 			const k = key as keyof T;
+			// 1) 通常フィールド: 値変化で自身を再検証する。
 			vueWatch(
 				() => (this._fields[k] as FieldObject<any>).value,
 				() => {
 					if (isValidateImmediately || this.$startValid) this.isErrorField(key);
 				},
 			);
+			// 2) ネストしたサブフォーム / サブフォーム配列: 値（サブフォーム参照や配列）が
+			//    変わるたびに、未監視のサブフォームへ再帰的に validateWatch を張る。
+			//    配列は追加・削除で参照が入れ替わる想定（parent.persons = [...]）のため、
+			//    この watch が発火して後から増えた要素も自動的に監視対象になる。
+			vueWatch(
+				() => (this._fields[k] as FieldObject<any>).value,
+				(val) => this.attachNestedWatch(val, isValidateImmediately),
+				{ immediate: true },
+			);
 		}
 	}
 
+	// ネスト値（単一サブフォーム or サブフォーム配列）を走査し、未監視のものへ
+	// validateWatch を張る。二重登録は _watchedNested（WeakSet）で防ぐ。
+	private attachNestedWatch(
+		value: unknown,
+		isValidateImmediately: boolean,
+	): void {
+		if (isVufFormInstance(value)) {
+			this.ensureNestedWatched(value, isValidateImmediately);
+		} else if (Array.isArray(value)) {
+			for (const el of value) {
+				if (isVufFormInstance(el)) {
+					this.ensureNestedWatched(el, isValidateImmediately);
+				}
+			}
+		}
+	}
+
+	private ensureNestedWatched(
+		form: VufForm<any>,
+		isValidateImmediately: boolean,
+	): void {
+		if (this._watchedNested.has(form)) return;
+		this._watchedNested.add(form);
+		form.validateWatch(isValidateImmediately);
+		// 親が既に検証開始済みなら、後から追加されたサブフォームにも検証開始を伝播し、
+		// 追加直後からリアルタイム検証が効くようにする。
+		if (this.$startValid) form.startValid();
+	}
+
 	startValid(): void {
-		// 以降の変更でバリデーションを行うフラグを有効化。
 		this.$startValid = true;
+		coreStartNested(
+			this._fields as unknown as FieldsMap,
+			fieldAccessor,
+			isVufFormInstance,
+		);
 	}
 
 	// 互換 API（フォーム内部構造へのアクセス補助）
@@ -328,156 +282,27 @@ export class VufForm<T extends Record<string, FieldObject<any>>> {
 	}
 
 	groupIsValid(fieldNames?: string[]): boolean {
-		// 指定フィールド群（未指定なら全フィールド）を検証し、全体として有効かどうかを返す。
-		// ネスト（"parent.child"）指定にも対応
-		this.startValid();
-		const keys: string[] =
-			fieldNames && fieldNames.length > 0
-				? fieldNames
-				: Object.keys(this._fields as Record<string, unknown>).filter(
-						(key) => !key.startsWith('$'),
-					);
-		let isValid = true;
-		for (const key of keys) {
-			if (key.startsWith('$')) continue;
-			if (key.indexOf('.') >= 0) {
-				try {
-					const [parentKey, childKey] = key.split('.');
-					const fields = this._fields as unknown as FieldsMap;
-					if (parentKey && fields[parentKey] && fields[parentKey].value) {
-						const nestedForm = fields[parentKey].value as unknown;
-						if (
-							nestedForm &&
-							typeof (nestedForm as any).isErrorField === 'function' &&
-							(nestedForm as any).isErrorField(childKey)
-						) {
-							isValid = false;
-						}
-					}
-				} catch (e) {
-					console.error(`Error processing nested field: ${key}`, e);
-				}
-			} else if (this.isErrorField(key)) {
-				isValid = false;
-			}
-		}
-		return isValid;
+		return coreGroupIsValid(
+			this._fields as unknown as FieldsMap,
+			fieldAccessor,
+			fieldNames,
+			() => this.startValid(),
+			(key) => this.isErrorField(key),
+		);
 	}
 
 	isErrorField(fieldName: string): boolean {
-		// 単一フィールドの検証を実行し、エラー有無を返却。
-		// ルール関数の取得・メッセージ差し替え・例外時の継続動作を踏襲する。
-		if (!this.$startValid) return false;
-		let hasError = false;
-		const obj = (this._fields as unknown as FieldsMap)[fieldName];
-		if (!obj) {
-			console.error(`isErrorField error: ${fieldName} is not found in _fields`);
-			return false;
-		}
-		const validatorList = obj.validate;
-		if (!validatorList) return false;
-		if (!obj.validator) obj.validator = { error: false, message: '' };
-
-		const validators = getValidatorMap();
-		const localeMessages = getMessages();
-
-		for (const validator of validatorList) {
-			let validFunc: ((...args: any[]) => boolean) | undefined;
-			let validMessage: string | undefined;
-			let params: any[] = [];
-			let validStr = '';
-			if (typeof validator === 'string') validStr = validator;
-			else if (typeof validator === 'function') {
-				// 関数参照のまま渡された場合は検証できない。呼び出し忘れを検知して知らせる。
-				console.error(
-					`validate error: field "${fieldName}" のバリデータに関数参照が渡されています。` +
-						'required() / maxLength(n) のように呼び出した結果を渡してください。',
-				);
-				continue;
-			} else if (validator && (validator as any).length > 0) {
-				validStr = (validator as any)[0];
-				params = (validator as any).slice(1);
-			}
-			validFunc = validators[validStr];
-			validMessage = localeMessages[validStr];
-			if (validMessage) {
-				validMessage = validMessage.replace('{param}', validStr);
-				for (const ind in params)
-					validMessage = validMessage.replace(`{${ind}}`, params[ind]);
-			} else {
-				validMessage = `Validation error: ${validStr}`;
-			}
-			try {
-				if (
-					validFunc &&
-					!validFunc(obj.value, this as unknown as VufForm<any>, ...params)
-				) {
-					obj.validator.message = validMessage;
-					hasError = true;
-				}
-			} catch (error) {
-				console.error(`バリデーションエラー [${validStr}]:`, error);
-				obj.validator.message = '検証中にエラーが発生しました';
-				hasError = true;
-			}
-		}
-		obj.validator.error = hasError;
-		if (!hasError) obj.validator.message = '';
-		obj.$startValid = true;
-		return obj.validator.error;
+		return coreIsErrorField(
+			this._fields as unknown as FieldsMap,
+			fieldAccessor,
+			fieldName,
+			this.$startValid,
+			this as unknown as VufForm<any>,
+			getValidatorMap(),
+			getMessages(),
+		);
 	}
 }
-
-// ----------------------------
-// ヘルパー
-// ----------------------------
-
-// 値を JSON 化に適した形へ整形。
-// 配列は要素ごとに再帰、VufForm は getJson、Number は NaN を null にフォールバック。
-const formatValue = (obj: FieldObject<any>, value: any): any => {
-	let retVal = value;
-	if (Array.isArray(value)) {
-		retVal = value.reduce((newArray: any[], currentValue: any) => {
-			newArray.push(formatValue({} as FieldObject<any>, currentValue));
-			return newArray;
-		}, [] as any[]);
-	} else if (isVufFormInstance(value)) {
-		retVal = value.getJson();
-	} else if (obj.type === Number) {
-		retVal = Number(value);
-		if (Number.isNaN(retVal)) {
-			console.log('Number parse error. value:', value);
-			retVal = null;
-		}
-	}
-	return retVal;
-};
-
-// 抽出対象の FieldObject 群から、空文字・内部キーを除外しつつ値を取り出す。
-// 取り出し後は formatValue で最終整形する。
-const extractData = (
-	formObj: Record<string, FieldObject<any>>,
-	isIgnoreBlank = true,
-): Record<string, any> => {
-	const valueObj: Record<string, any> = {};
-	Object.keys(formObj).forEach((key) => {
-		if (key.startsWith('$')) return;
-		const obj = formObj[key];
-		if (obj?.value !== undefined) {
-			let value: any = null;
-			if (isIgnoreBlank && typeof obj.value === 'string') {
-				if (obj.value) value = obj.value;
-			} else if (obj.value instanceof VufForm) {
-				if (obj.value) value = obj.value.getJson();
-			} else {
-				if (obj.value !== null && obj.value !== undefined) value = obj.value;
-			}
-			if (value !== null && value !== undefined)
-				valueObj[key] = formatValue(obj, value);
-		}
-	});
-	return valueObj;
-};
 
 // フィールド定義ヘルパ。与えられた構成をそのまま FieldObject に昇格させる。
 export function field<T>(config: FieldConfig<T>): FieldObject<T> {

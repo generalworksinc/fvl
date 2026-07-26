@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import { nextTick } from 'vue';
 
 import {
 	anyCondition,
@@ -7,6 +8,87 @@ import {
 	required,
 	sameAs,
 } from '../src/vue/mod.ts';
+
+describe('validateWatch のネスト伝播 (vue/mod.ts)', () => {
+	const ChildFactory = createForm2(
+		{ name: field({ value: '', name: 'Name', validate: [required()] }) },
+		{ methods: () => ({}) },
+	);
+
+	test('親の validateWatch がネストした単一サブフォームにも再帰的に張られる', async () => {
+		const ParentFactory = createForm2(
+			{
+				child: field({
+					value: null as any,
+					name: 'Child',
+					validate: [],
+					type: ChildFactory as any,
+				}),
+			},
+			{ methods: () => ({}) },
+		);
+		const parent: any = ParentFactory();
+		parent.setData({ child: { name: 'Taro' } });
+		parent.validateWatch();
+
+		const child: any = parent.getFieldValue('child');
+		// 送信相当: 親 startValid → 子にも検証開始が伝播する
+		parent.startValid();
+		expect(child.$startValid).toBe(true);
+
+		// 子フィールドを不正値へ → リアルタイムで子 validator にエラーが反映される
+		child.name = '';
+		await nextTick();
+		expect(child.getFieldObject('name').validator.error).toBe(true);
+
+		// 正常値へ → エラー解消
+		child.name = 'Jiro';
+		await nextTick();
+		expect(child.getFieldObject('name').validator.error).toBe(false);
+	});
+
+	test('サブフォーム配列（動的追加を含む）にも watch と startValid が伝播する', async () => {
+		const ParentFactory = createForm2(
+			{
+				items: field({
+					value: [] as any,
+					name: 'Items',
+					validate: [],
+					type: Array,
+					subType: ChildFactory as any,
+				}),
+			},
+			{ methods: () => ({}) },
+		);
+		const parent: any = ParentFactory();
+		parent.setData({ items: [{ name: 'a' }] });
+		parent.validateWatch();
+		parent.startValid();
+
+		const first: any = parent.getFieldValue('items')[0];
+		expect(first.$startValid).toBe(true);
+		first.name = '';
+		await nextTick();
+		expect(first.getFieldObject('name').validator.error).toBe(true);
+
+		// 動的追加: 新しい配列参照を代入すると nested watch が発火し、
+		// 追加要素にも watch と（親が検証開始済みなので）startValid が伝播する。
+		const added: any = ChildFactory();
+		parent.setFieldValue('items', [...parent.getFieldValue('items'), added]);
+		await nextTick();
+
+		const secondRef: any = parent.getFieldValue('items')[1];
+		expect(secondRef.$startValid).toBe(true);
+		// 追加直後は name='' だが、watch は値が実際に変化したときのみ発火するため、
+		// 一度有効値に変えてからクリアして、リアルタイム検証が効くことを確認する。
+		secondRef.name = 'ok';
+		await nextTick();
+		expect(secondRef.getFieldObject('name').validator.error).toBe(false);
+		secondRef.name = '';
+		await nextTick();
+		expect(secondRef.getFieldObject('name').validator.error).toBe(true);
+	});
+});
 
 describe('createForm2 (vue/mod.ts)', () => {
 	test('親メソッドを使って validate を実装し、拡張メソッドとして利用できる', () => {

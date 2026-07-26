@@ -263,3 +263,75 @@ describe('VufForm (solidjs/vufSolid.ts)', () => {
 		});
 	});
 });
+
+describe('formatValue Number 分岐の Vue 整合 (solid/mod.ts)', () => {
+	test('数値化できない値は null になる（NaN を漏らさない）', () => {
+		const form: any = new (VufForm as any)({
+			age: { value: null, name: '年齢', validate: [], type: Number },
+		});
+		form.age = 'abc';
+		const json = form.getValueJson({ isIgnoreBlank: false });
+		expect(json.age).toBeNull();
+	});
+});
+
+describe('validateWatch のネスト伝播 (solid/mod.ts)', () => {
+	class Child extends (VufForm as any) {
+		static gen() {
+			return new (Child as any)({
+				name: { value: '', name: 'Name', validate: [required()] },
+			});
+		}
+	}
+
+	// NOTE: このテスト環境の solid は SSR ビルド解決で createEffect が走らないため、
+	// 「値変化で effect が発火してリアルタイム再検証される」性質は検証できない
+	// （それは実反応性で動く Vue 側テストで担保）。ここでは effect に依存しない
+	// 決定的な保証＝ startValid() の同期的な再帰伝播と、伝播後の nested 検証の
+	// 正当性（isErrorField 直呼び）を確認する。
+
+	test('startValid が単一サブフォームへ再帰伝播し、伝播後は nested 検証が効く', () => {
+		createRoot(() => {
+			const form: any = new (VufForm as any)({
+				child: { value: null, name: 'Child', validate: [], type: Child },
+			});
+			form.setData({ child: { name: 'Taro' } });
+			form.validateWatch();
+			const child: any = form.getFieldValue('child');
+
+			form.startValid();
+			expect(child.$startValid[0]()).toBe(true); // 検証開始が伝播
+
+			child.name = '';
+			expect(child.isErrorField('name')).toBe(true);
+			child.name = 'Jiro';
+			expect(child.isErrorField('name')).toBe(false);
+		});
+	});
+
+	test('startValid がサブフォーム配列の各要素へ再帰伝播する', () => {
+		createRoot(() => {
+			const form: any = new (VufForm as any)({
+				items: {
+					value: [],
+					name: 'Items',
+					validate: [],
+					type: Array,
+					subType: Child,
+				},
+			});
+			form.setData({ items: [{ name: 'a' }, { name: 'b' }] });
+			form.validateWatch();
+			form.startValid();
+
+			const items: any[] = form.getFieldValue('items');
+			expect(items[0].$startValid[0]()).toBe(true);
+			expect(items[1].$startValid[0]()).toBe(true);
+
+			items[0].name = '';
+			expect(items[0].isErrorField('name')).toBe(true);
+			items[0].name = 'ok';
+			expect(items[0].isErrorField('name')).toBe(false);
+		});
+	});
+});

@@ -28,6 +28,15 @@ describe('core/mod - validator registry', () => {
 		expect(validators[name]).toBe(fn);
 	});
 
+	test('registerValidator rejects an existing validator name', () => {
+		const name = `unit_duplicate_${Date.now()}`;
+		registerValidator(name, () => true);
+
+		expect(() => registerValidator(name, () => false)).toThrow(
+			`Validator "${name}" is already registered`,
+		);
+	});
+
 	test('overrideValidator replaces existing validator function', () => {
 		const name = `unit_override_${Date.now()}`;
 		const fn1 = () => false;
@@ -36,6 +45,14 @@ describe('core/mod - validator registry', () => {
 		overrideValidator(name, fn2);
 		const validators = getValidatorMap();
 		expect(validators[name]).toBe(fn2);
+	});
+
+	test('overrideValidator rejects an unregistered validator name', () => {
+		const name = `unit_missing_${Date.now()}`;
+
+		expect(() => overrideValidator(name, () => true)).toThrow(
+			`Validator "${name}" is not registered`,
+		);
 	});
 
 	test('makeRule builds a tuple factory', () => {

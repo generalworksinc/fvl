@@ -23,15 +23,17 @@ let currentLocale: string = Object.keys(messagesRegistry)[0] || 'ja';
 // Validator extension API
 // ----------------------------
 
-// TODO(gw): registerValidator は「新規登録専用」。既存名がある場合は例外を投げて衝突を検知する実装に変更する
-//  - 監査ログ（debug/info）も出力して、意図しない上書きを防止する
 export function registerValidator(name: string, fn: ValidatorFunction): void {
+	if (Object.hasOwn(validatorRegistry, name)) {
+		throw new Error(`Validator "${name}" is already registered`);
+	}
 	validatorRegistry[name] = fn;
 }
 
-// TODO(gw): overrideValidator は「上書き専用」。未登録の場合は例外を投げ、タイプミス等の意図しない新規作成を防止する
-//  - 上書き時は警告ログ（warn）を出力して挙動を可視化する
 export function overrideValidator(name: string, fn: ValidatorFunction): void {
+	if (!Object.hasOwn(validatorRegistry, name)) {
+		throw new Error(`Validator "${name}" is not registered`);
+	}
 	validatorRegistry[name] = fn;
 }
 
