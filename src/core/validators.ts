@@ -18,6 +18,8 @@ const validators: Record<string, ValidatorFunction> = {
 	length: (value: any, _form: IVufForm, num: number): boolean => {
 		return String(value).length === num;
 	},
+	// 任意条件バリデータ。値が空なら検証をスキップ（true）。非空のときはフォームに登録された
+	// emit ハンドラ funcName を呼び、その真偽で合否を決める（利用側が任意ロジックを注入できる）。
 	anyCondition: (
 		value: any,
 		form: IVufForm,
@@ -28,6 +30,9 @@ const validators: Record<string, ValidatorFunction> = {
 		// emit の返り値は本来 any/unknown。バリデーションとしては truthy/falsey を boolean に寄せる。
 		return Boolean(form.emit(funcName, value, message));
 	},
+	// 同一フォーム内の別フィールド（fieldName）と値が一致するか（例: メール確認欄）。
+	// 値の取得は 2 段構え: まず getJson({isIgnoreBlank:false}) の結果に該当キーがあればそれを使い、
+	// （空文字で JSON から落ちている等で）無ければ getFieldValue で直接読む。空値のときは検証スキップ。
 	sameAs: (value: any, form: IVufForm, fieldName: string): boolean => {
 		if (value == null || value === '') return true;
 

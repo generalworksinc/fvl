@@ -57,6 +57,9 @@ export interface FieldObject<T = any> extends Omit<FieldConfig<T>, 'value'> {
 	id?: string;
 }
 
+// Solid 版のフィールドアクセサ。値は Signal タプル `[get, set]` として `field.value` に持つ
+// （Vue のように raw 値ではない）。core のロジックはこの read/write 経由で値に触れるため、
+// Signal の読み書き（`[0]()` / `[1](v)`）の差はここで吸収される。
 const fieldAccessor: FieldAccessor<FieldObject<any>> = {
 	read: (field) => field.value[0](),
 	write: (field, value) => {

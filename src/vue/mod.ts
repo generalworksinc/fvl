@@ -40,6 +40,8 @@ export interface FieldObject<T = any> extends FieldConfig<T> {
 	id?: string;
 }
 
+// Vue 版のフィールドアクセサ。値は reactive な raw 値として `field.value` に直接持つ
+// （Solid のように Signal タプルではない）。core のロジックはこの read/write 経由で値に触れる。
 const fieldAccessor: FieldAccessor<FieldObject<any>> = {
 	read: (field) => field.value,
 	write: (field, value) => {
@@ -61,7 +63,9 @@ const KEY_EMITS = Symbol('$emits');
 // 内部で扱うフィールドマップ型（キーは動的）
 type FieldsMap = Record<string, FieldObject<any>>;
 
-// 値が VufForm インスタンスかどうかの型ガード
+// 値が VufForm インスタンスかどうかの型ガード。
+// Vue の reactive でラップされたインスタンスでも、Proxy は getPrototypeOf を透過するため
+// プロトタイプチェーン判定（instanceof VufForm）が正しく機能する。
 function isVufFormInstance(value: unknown): value is VufForm<any> {
 	return (
 		value !== null &&
@@ -472,6 +476,10 @@ export function createForm2<
 	class FormClass extends VufForm<T> {
 		constructor(options?: { emits?: EmitFunctions }) {
 			super(formDefinition, options);
+			// parent は「フォームの公開メソッド + フィールドアクセス」を束ねたプロキシ。
+			// これを methodsFactory / emitsFactory に渡すことで、利用側の定義内で
+			// parent.fieldName（読み取り）/ parent.fieldName = v（書き込み）/
+			// parent.groupIsValid(...) などを自然に記述できるようにする。
 			const parent = createParentProxy<FormValues>(
 				this as unknown as AnyForm,
 				createParentMethods(
@@ -479,7 +487,8 @@ export function createForm2<
 				) as ParentMethods<FormValues>,
 			);
 
-			// methods
+			// 利用側が定義した追加メソッドを実体(this=フォーム本体)へ bind して生やす。
+			// 引数の parent はフィールドアクセス用プロキシだが、メソッドの this はフォーム本体になる。
 			const methods = methodsFactory(parent);
 			const self = this as unknown as Record<string, unknown>;
 			Object.entries(methods).forEach(([name, method]) => {
@@ -488,7 +497,7 @@ export function createForm2<
 				).bind(this);
 			});
 
-			// emits (definition-time)
+			// anyCondition などが参照する emits を、フォーム定義時に登録しておく。
 			if (emitsFactory) {
 				const emits = emitsFactory(parent);
 				Object.entries(emits).forEach(([eventName, handler]) => {
