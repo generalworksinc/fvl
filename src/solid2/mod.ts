@@ -48,9 +48,11 @@ export * from './formFactory';
 const KEY_FORM = Symbol('$form');
 const KEY_RANDOM = Symbol('$key');
 const KEY_EMITS = Symbol('$emits');
+const KEY_CURRENT_VALUE = Symbol('$currentValue');
 
 export interface FieldObject<T = any> extends Omit<FieldConfig<T>, 'value'> {
 	value: [() => T, (v: T) => T];
+	[KEY_CURRENT_VALUE]: T;
 	validator?: Validator;
 	[KEY_FORM]?: VufForm<any>;
 	$startValid?: boolean;
@@ -61,7 +63,12 @@ export interface FieldObject<T = any> extends Omit<FieldConfig<T>, 'value'> {
 // （Vue のように raw 値ではない）。core のロジックはこの read/write 経由で値に触れるため、
 // Signal の読み書き（`[0]()` / `[1](v)`）の差はここで吸収される。
 const fieldAccessor: FieldAccessor<FieldObject<any>> = {
-	read: (field) => field.value[0](),
+	read: (field) => {
+		// Signal を読んで reactive dependency を維持しつつ、Solid 2 の staged
+		// write 中でも VufForm の同期 getter 契約を満たす plain 値を返す。
+		field.value[0]();
+		return field[KEY_CURRENT_VALUE];
+	},
 	write: (field, value) => {
 		field.value[1](value);
 	},
@@ -92,9 +99,17 @@ export class VufForm<T extends Record<string, FieldConfig<any>>> {
 			if (Object.hasOwn(clonedModel, key)) {
 				const config = clonedModel[key];
 				const signal = createSignal(config.value);
-				const obj: FieldObject<any> = {
+				let obj: FieldObject<any>;
+				obj = {
 					...config,
-					value: signal,
+					value: [
+						signal[0],
+						(value) => {
+							obj[KEY_CURRENT_VALUE] = value;
+							return signal[1](value);
+						},
+					],
+					[KEY_CURRENT_VALUE]: config.value,
 					validator: { error: false, message: '' },
 					[KEY_FORM]: this,
 					id: config.id || `${key}_${makeRandomKey()}`,
@@ -103,9 +118,9 @@ export class VufForm<T extends Record<string, FieldConfig<any>>> {
 				Object.defineProperty(this, key, {
 					enumerable: true,
 					configurable: false,
-					get: () => this._fields[key].value[0](),
+					get: () => fieldAccessor.read(this._fields[key]),
 					set: (newValue: any) => {
-						this._fields[key].value[1](newValue);
+						fieldAccessor.write(this._fields[key], newValue);
 					},
 				});
 			}
@@ -140,11 +155,11 @@ export class VufForm<T extends Record<string, FieldConfig<any>>> {
 	}
 	/** フィールドの現在値を取得する（Signal の get を通す） */
 	getFieldValue<K extends keyof T>(key: K): any {
-		return this._fields[key as string].value[0]();
+		return fieldAccessor.read(this._fields[key as string]);
 	}
 	/** フィールドの値を設定する（Signal の set を通す） */
 	setFieldValue<K extends keyof T>(key: K, value: any): void {
-		this._fields[key as string].value[1](value);
+		fieldAccessor.write(this._fields[key as string], value);
 	}
 	/** フォームの一意キー（UI のキーなどに利用可） */
 	getKey(): number {

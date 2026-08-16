@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, jest, test } from 'bun:test';
-import { createRoot, flush } from 'solid-js';
+import { createEffect, createRoot, flush } from 'solid-js';
 
 declare global {
 	// eslint-disable-next-line @typescript-eslint/no-namespace
@@ -71,6 +71,35 @@ describe('VufForm (solid2/vufSolid.ts)', () => {
 	});
 
 	describe('基本操作', () => {
+		test('setter直後のgetterはflushなしで最新値を返し、effectも更新される', () => {
+			createRoot(() => {
+				const form: any = makeForm();
+				const observed: string[] = [];
+				createEffect(
+					() => form.name,
+					(value) => {
+						observed.push(value);
+					},
+				);
+
+				form.name = 'Alice';
+				expect(form.name).toBe('Alice');
+				expect(form.getFieldValue('name')).toBe('Alice');
+				expect(form.getJson().name).toBe('Alice');
+
+				form.setFieldValue('name', 'Bob');
+				expect(form.name).toBe('Bob');
+				expect(form.getFieldValue('name')).toBe('Bob');
+				expect(form.getJson().name).toBe('Bob');
+
+				form.getFieldObject('name').value[1]('Carol');
+				expect(form.name).toBe('Carol');
+
+				flush();
+				expect(observed.at(-1)).toBe('Carol');
+			});
+		});
+
 		test('get/set と Field API', () => {
 			const form: any = makeForm();
 			form.name = 'Alice';
@@ -248,7 +277,18 @@ describe('VufForm (solid2/vufSolid.ts)', () => {
 	});
 
 	describe('setData（ネスト/配列/カスタム処理）', () => {
-		test('ネストした VufForm を再帰的に生成', () => {
+		test('setData直後のJSONはflushなしで最新値を返す', () => {
+			const form: any = makeForm();
+			form.setData({ name: 'Alice', email: 'alice@example.com', age: 30 });
+
+			expect(form.getJson()).toMatchObject({
+				name: 'Alice',
+				email: 'alice@example.com',
+				age: 30,
+			});
+		});
+
+		test('ネストした VufForm を再帰的に生成し、flushなしで読める', () => {
 			class Child extends (VufForm as any) {
 				static gen() {
 					return new (Child as any)({
@@ -260,11 +300,10 @@ describe('VufForm (solid2/vufSolid.ts)', () => {
 				child: { value: null, name: '子', validate: [], type: Child },
 			});
 			form.setData({ child: { first: 'Taro' } });
-			flush();
 			expect(form.getJson().child.first).toBe('Taro');
 		});
 
-		test('VufForm 配列を再帰的に生成', () => {
+		test('VufForm 配列を再帰的に生成し、flushなしで読める', () => {
 			class Item extends (VufForm as any) {
 				static gen() {
 					return new (Item as any)({
@@ -282,7 +321,6 @@ describe('VufForm (solid2/vufSolid.ts)', () => {
 				},
 			});
 			form.setData({ items: [{ name: 'i1' }, { name: 'i2' }] });
-			flush();
 			const json = form.getJson({});
 			flush();
 			expect(json.items[0].name).toBe('i1');
