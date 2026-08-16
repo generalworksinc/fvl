@@ -126,6 +126,7 @@ import { createEffect, createSignal } from 'solid-js';
   - テストは TypeScript（`__tests__/**/*.test.ts`）で記述
   - テストの import はソース直参照（例: `../src/vue/mod.ts`）
   - フレームワーク依存（Vue/Solid）は optional peerDependencies
+  - ローカル検証バージョンは`overrides`でSolid 2 RC / Vue 3.5へ固定し、JSRのnpm互換配布物へdevDependencyの固定バージョンを持ち込まない
 
 ## CI / CD（概要）
 

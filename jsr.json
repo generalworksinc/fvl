@@ -1,6 +1,6 @@
 {
 	"name": "@generalworks/vuf",
-	"version": "1.2.0",
+	"version": "1.2.1",
 	"license": "MIT",
 	"exports": {
 		".": "./src/core/mod.ts",
@@ -9,5 +9,8 @@
 		"./solid2": "./src/solid2/mod.ts",
 		"./messages/ja": "./src/core/messages/ja.ts",
 		"./messages/en": "./src/core/messages/en.ts"
+	},
+	"publish": {
+		"include": ["README.md", "package.json", "src/**/*.ts"]
 	}
 }
