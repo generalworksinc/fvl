@@ -1,5 +1,22 @@
 import { beforeEach, describe, expect, jest, test } from 'bun:test';
-import { createEffect, createRoot, flush } from 'solid-js';
+import { createEffect, createRoot, createSignal, flush } from 'solid-js';
+
+// bare `bun test` は server 条件で Solid 2 を解決し、effect が実行されない。
+// 実際の signal 更新を一度だけプローブし、effect 固有の検証だけを条件付きで外す。
+const effectsRunInThisEnvironment = createRoot((dispose) => {
+	let effectRan = false;
+	const [probe, setProbe] = createSignal(0);
+	createEffect(
+		() => probe(),
+		() => {
+			effectRan = true;
+		},
+	);
+	setProbe(1);
+	flush();
+	dispose();
+	return effectRan;
+});
 
 declare global {
 	// eslint-disable-next-line @typescript-eslint/no-namespace
@@ -71,16 +88,9 @@ describe('VufForm (solid2/vufSolid.ts)', () => {
 	});
 
 	describe('基本操作', () => {
-		test('setter直後のgetterはflushなしで最新値を返し、effectも更新される', () => {
+		test('setter直後のgetterはflushなしで最新値を返す', () => {
 			createRoot(() => {
 				const form: any = makeForm();
-				const observed: string[] = [];
-				createEffect(
-					() => form.name,
-					(value) => {
-						observed.push(value);
-					},
-				);
 
 				form.name = 'Alice';
 				expect(form.name).toBe('Alice');
@@ -94,11 +104,28 @@ describe('VufForm (solid2/vufSolid.ts)', () => {
 
 				form.getFieldObject('name').value[1]('Carol');
 				expect(form.name).toBe('Carol');
-
-				flush();
-				expect(observed.at(-1)).toBe('Carol');
 			});
 		});
+
+		test.skipIf(!effectsRunInThisEnvironment)(
+			'setterによる更新をeffectが購読できる',
+			() => {
+				createRoot(() => {
+					const form: any = makeForm();
+					const observed: string[] = [];
+					createEffect(
+						() => form.name,
+						(value) => {
+							observed.push(value);
+						},
+					);
+					form.name = 'Carol';
+
+					flush();
+					expect(observed.at(-1)).toBe('Carol');
+				});
+			},
+		);
 
 		test('get/set と Field API', () => {
 			const form: any = makeForm();

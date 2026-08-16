@@ -102,8 +102,8 @@ import { createEffect, createSignal } from 'solid-js';
   - 自動修正: `bunx biome check . --apply`
 - 型チェック（TypeScript）
   - `bun run typecheck`（`tsc --noEmit`）
-- テスト（bun test）
-  - 全体: `bun test`
+- テスト（`bun run test`を推奨。Solid 1 / Solid 2を適切な条件で分離実行）
+  - 全体: `bun run test`
   - 監視: `bun test --watch`
   - カバレッジ: `bun test --coverage`
 - ビルド（GitHub 直導入向けに dist/ 出力）
