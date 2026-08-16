@@ -11,7 +11,7 @@
 - 依存インストール: `bun install`。
 - Lint/Format: `bunx biome check .`（自動修正は `--apply`）。
 - 型チェック: `bun run typecheck`。
-- テスト: `bun test`、監視: `bun test --watch`、カバレッジ: `bun test --coverage`。
+- テスト: `bun run test`（推奨。Solid 1 / Solid 2を条件別に実行）、監視: `bun test --watch`、カバレッジ: `bun test --coverage`。
 - ビルド: `bun run build`（tsup → `dist/`）。
 - JSR ドライラン: `bun run jsr:check`、公開: `bunx jsr publish`。
 

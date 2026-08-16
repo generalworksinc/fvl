@@ -35,7 +35,7 @@ jobs:
         run: bun run typecheck || bunx --yes typescript tsc --noEmit
 
       - name: Test
-        run: bun test
+        run: bun run test
 
       - name: Build
         run: bun run build || echo "build script not yet defined"
@@ -65,4 +65,3 @@ jobs:
 
       - name: Publish (JSR)
         run: bunx --yes jsr publish
-

@@ -1,11 +1,12 @@
 {
 	"name": "@generalworks/vuf",
-	"version": "1.1.8",
+	"version": "1.2.0",
 	"type": "module",
 	"exports": {
 		".": "./dist/core/index.js",
 		"./vue": "./dist/vue/index.js",
 		"./solid": "./dist/solid/index.js",
+		"./solid2": "./dist/solid2/index.js",
 		"./messages/ja": "./dist/messages/ja.js",
 		"./messages/en": "./dist/messages/en.js"
 	},
@@ -14,7 +15,7 @@
 	],
 	"peerDependencies": {
 		"vue": "^3.4",
-		"solid-js": ">=1.8"
+		"solid-js": ">=1.8 <2 || >=2.0.0-0"
 	},
 	"peerDependenciesMeta": {
 		"vue": {
@@ -30,7 +31,10 @@
 		"lint:fix": "biome check --write .",
 		"lint:fix-unsafe": "biome check --write --unsafe .",
 		"format": "biome format --write .",
-		"test": "bun test",
+		"test": "bun run test:base && bun run test:solid1 && bun run test:solid2",
+		"test:base": "bun test __tests__/core_mod.test.ts __tests__/messages.test.ts __tests__/messages_subpath.test.ts __tests__/validators.test.ts __tests__/vuf2.test.ts __tests__/vue_formFactory.test.ts __tests__/performance.test.ts",
+		"test:solid1": "bun test __tests__/solid_formFactory.test.ts __tests__/solid_vufSolid.test.ts __tests__/adapter_contract.test.ts --conditions browser --preload ./scripts/bun-solid1.ts",
+		"test:solid2": "bun test __tests__/solid2_formFactory.test.ts __tests__/solid2_vufSolid.test.ts __tests__/adapter_contract_solid2.test.ts --conditions browser",
 		"build": "tsup",
 		"jsr:check": "bunx jsr publish --dry-run --allow-dirty",
 		"fix": "bun run lint:fix && bun run format",
@@ -39,7 +43,8 @@
 	"devDependencies": {
 		"@biomejs/biome": "^2.2.2",
 		"bun-types": "^1.2.21",
-		"solid-js": "^1.9.9",
+		"solid-js": "2.0.0-rc.0",
+		"solid-js-v1": "npm:solid-js@^1.9.14",
 		"vue": "^3.5.20",
 		"tsup": "^8.5.0",
 		"typescript": "^5.9.2"
