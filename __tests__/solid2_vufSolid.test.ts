@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, jest, test } from 'bun:test';
+import { describe, expect, jest, test } from 'bun:test';
 import { createEffect, createRoot, createSignal, flush } from 'solid-js';
 
 // bare `bun test` は server 条件で Solid 2 を解決し、effect が実行されない。
@@ -18,37 +18,13 @@ const effectsRunInThisEnvironment = createRoot((dispose) => {
 	return effectRan;
 });
 
-declare global {
-	// eslint-disable-next-line @typescript-eslint/no-namespace
-	interface Global {
-		createEffect?: any;
-		createSignal?: any;
-	}
-}
-
-// SolidJS の最低限モック
-const effects = new Set<Function>();
-(global as any).createEffect = (fn: Function) => {
-	effects.add(fn);
-	fn();
-};
-(global as any).createSignal = (initial: any) => {
-	let v = initial;
-	const get = () => v;
-	const set = (nv: any) => {
-		v = nv;
-		effects.forEach((e) => e());
-		return nv;
-	};
-	return [get, set] as const;
-};
-
 import {
 	anyCondition,
 	field,
 	isEmail,
 	maxLength,
 	required,
+	sameAs,
 	VufForm,
 } from '../src/solid2/mod.ts';
 
@@ -62,10 +38,6 @@ describe('VufForm (solid2/vufSolid.ts)', () => {
 		};
 		return new VufForm(model, { emits });
 	}
-
-	beforeEach(() => {
-		effects.clear();
-	});
 
 	describe('constructor', () => {
 		test('初期化', () => {
@@ -235,6 +207,29 @@ describe('VufForm (solid2/vufSolid.ts)', () => {
 	});
 
 	describe('バリデーション', () => {
+		test.skipIf(!effectsRunInThisEnvironment)(
+			'sameAsは比較先フィールドの変更でも再検証される',
+			() => {
+				createRoot(() => {
+					const form: any = new (VufForm as any)({
+						a: { value: 'x', name: '比較先', validate: [] },
+						b: { value: 'x', name: '確認用', validate: [sameAs('a')] },
+					});
+					form.validateWatch();
+					form.startValid();
+					flush();
+					expect(form.getFieldObject('b').validator.error).toBe(false);
+
+					form.a = 'y';
+					flush();
+					expect(form.getFieldObject('b').validator.error).toBe(true);
+					expect(form.getFieldObject('b').validator.message).toBe(
+						'※確認用が間違っているようです。',
+					);
+				});
+			},
+		);
+
 		test('必須/Email 判定', () => {
 			const form: any = makeForm();
 			form.startValid();

@@ -13,7 +13,13 @@
  * - JSON 化は `getValueJson` を基礎として、キー整形（頭大文字など）を派生で提供
  */
 
-import { createEffect, createSignal, getOwner, runWithOwner } from 'solid-js';
+import {
+	createEffect,
+	createSignal,
+	createTrackedEffect,
+	getOwner,
+	runWithOwner,
+} from 'solid-js';
 import {
 	coreGetJsonHeadUpper,
 	coreGetValueJson,
@@ -105,8 +111,9 @@ export class VufForm<T extends Record<string, FieldConfig<any>>> {
 					value: [
 						signal[0],
 						(value) => {
+							const result = signal[1](value);
 							obj[KEY_CURRENT_VALUE] = value;
-							return signal[1](value);
+							return result;
 						},
 					],
 					[KEY_CURRENT_VALUE]: config.value,
@@ -223,13 +230,12 @@ export class VufForm<T extends Record<string, FieldConfig<any>>> {
 			if (!key.includes('$')) {
 				const fieldSignal = this._fields[key].value;
 				// 1) 通常フィールド: 値変化で自身を再検証する。
-				createEffect(
-					() => [fieldSignal[0](), this.$startValid[0]()] as const,
-					([, validationStarted]) => {
-						if (isValidateImmediately || validationStarted)
-							this.isErrorField(String(key));
-					},
-				);
+				createTrackedEffect(() => {
+					fieldSignal[0]();
+					const validationStarted = this.$startValid[0]();
+					if (isValidateImmediately || validationStarted)
+						this.isErrorField(String(key));
+				});
 				// 2) ネストしたサブフォーム / サブフォーム配列: 値（サブフォーム参照や配列）が
 				//    変わるたびに、未監視のサブフォームへ再帰的に validateWatch を張る。
 				//    配列は追加・削除で参照が入れ替わる想定（parent.items = [...]）のため、

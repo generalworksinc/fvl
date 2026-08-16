@@ -16,9 +16,24 @@
  *   代わりに getFieldValue()・validator.{error,message}・各 JSON 出力（共通）で検証する。
  */
 import { beforeEach, describe, expect, jest, test } from 'bun:test';
-import { flush } from 'solid-js';
+import { createEffect, createRoot, createSignal, flush } from 'solid-js';
 import { setLocale } from '../src/core/mod.ts';
 import * as solid2 from '../src/solid2/mod.ts';
+
+const effectsRunInThisEnvironment = createRoot((dispose) => {
+	let effectRan = false;
+	const [probe, setProbe] = createSignal(0);
+	createEffect(
+		() => probe(),
+		() => {
+			effectRan = true;
+		},
+	);
+	setProbe(1);
+	flush();
+	dispose();
+	return effectRan;
+});
 
 // メッセージ検証はロケール依存。core_mod.test.ts などが setLocale('en') 等で
 // グローバルな currentLocale を書き換えたまま残すため、実行順に依存しないよう
@@ -242,6 +257,33 @@ for (const [label, mod] of adapters) {
 			flush();
 			expect(f.isErrorField('b')).toBe(false);
 		});
+
+		test.skipIf(!effectsRunInThisEnvironment)(
+			'sameAs: 比較先フィールドの変更でも自動再検証する',
+			() => {
+				createRoot(() => {
+					const f: any = new VufForm({
+						a: field({ value: 'x', name: '比較先', validate: [] }),
+						b: field({
+							value: 'x',
+							name: '確認用',
+							validate: [sameAs('a')],
+						}),
+					});
+					f.validateWatch();
+					f.startValid();
+					flush();
+					expect(f.getFieldObject('b').validator.error).toBe(false);
+
+					f.a = 'y';
+					flush();
+					expect(f.getFieldObject('b').validator.error).toBe(true);
+					expect(f.getFieldObject('b').validator.message).toBe(
+						'※確認用が間違っているようです。',
+					);
+				});
+			},
+		);
 
 		test('メッセージの {param} はフィールドの表示名に補間される（ルール名ではない）', () => {
 			// ja の sameAs 既定文言は「※{param}が間違っているようです。」。

@@ -28,6 +28,14 @@ import { registerValidator, setMessages, setLocale } from "@generalworks/vuf";
 `/solid` は Solid 1 用、`/solid2` は Solid 2 用です。公開APIは同一なので、
 Solid 2への移行ではimport先のサブパスだけを変更できます。
 
+Solid 2版では、`form.key`と`getFieldValue(key)`はsetter直後からshadow値を同期的に
+返します。一方、`getFieldObject(key).value[0]()`はSolidのcommit済みsignal値なので、
+同一tickでは`flush()`まで旧値を返す場合があります。通常のフォーム操作では前者を使い、
+signal accessorを直接扱う場合だけこの非対称性に注意してください。
+
+peer範囲の`>=2.0.0-0`はSolid 2 RCを含めるための現行指定です。semver上、将来の
+`2.1.0-beta`等を自動的に含む保証はないため、その系列を採用する際は範囲を再確認します。
+
 ## i18n & Messages
 
 - ロケール別辞書の取り込み（サブパス）
