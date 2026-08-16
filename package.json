@@ -1,6 +1,6 @@
 {
 	"name": "@generalworks/vuf",
-	"version": "1.2.0",
+	"version": "1.2.1",
 	"type": "module",
 	"exports": {
 		".": "./dist/core/index.js",
@@ -43,13 +43,15 @@
 	"devDependencies": {
 		"@biomejs/biome": "^2.2.2",
 		"bun-types": "^1.2.21",
-		"solid-js": "2.0.0-rc.0",
 		"solid-js-v1": "npm:solid-js@^1.9.14",
-		"vue": "^3.5.20",
 		"tsup": "^8.5.0",
 		"typescript": "^5.9.2"
 	},
 	"dependencies": {
 		"v8n": "^1.5.1"
+	},
+	"overrides": {
+		"solid-js": "2.0.0-rc.0",
+		"vue": "3.5.20"
 	}
 }
