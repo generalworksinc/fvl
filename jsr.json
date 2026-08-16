@@ -1,11 +1,12 @@
 {
 	"name": "@generalworks/vuf",
-	"version": "1.1.8",
+	"version": "1.2.0",
 	"license": "MIT",
 	"exports": {
 		".": "./src/core/mod.ts",
 		"./vue": "./src/vue/mod.ts",
 		"./solid": "./src/solid/mod.ts",
+		"./solid2": "./src/solid2/mod.ts",
 		"./messages/ja": "./src/core/messages/ja.ts",
 		"./messages/en": "./src/core/messages/en.ts"
 	}

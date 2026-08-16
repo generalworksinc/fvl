@@ -1,0 +1,239 @@
+import { beforeEach, describe, expect, test } from 'bun:test';
+import { createRoot, flush } from 'solid-js';
+
+declare global {
+	// eslint-disable-next-line @typescript-eslint/no-namespace
+	interface Global {
+		createEffect?: any;
+		createSignal?: any;
+	}
+}
+
+// SolidJS の最低限モック
+const effects = new Set<Function>();
+(global as any).createEffect = (fn: Function) => {
+	effects.add(fn);
+	fn();
+};
+(global as any).createSignal = (initial: any) => {
+	let v = initial;
+	const get = () => v;
+	const set = (nv: any) => {
+		v = nv;
+		effects.forEach((e) => e());
+		return nv;
+	};
+	return [get, set] as const;
+};
+
+import { createForm, createForm2 } from '../src/solid2/formFactory.ts';
+import { anyCondition, field, required, sameAs } from '../src/solid2/mod.ts';
+
+describe('createForm (solid2/formFactory.ts)', () => {
+	beforeEach(() => {
+		effects.clear();
+	});
+
+	test('親メソッドを使って validate を実装し、拡張メソッドとして利用できる', () => {
+		createRoot(() => {
+			const factory = createForm(
+				{
+					name: { value: '', name: 'Name', validate: [required()] },
+					email: { value: '', name: 'Email', validate: [] },
+				},
+				(parent: any) => ({
+					validateAll() {
+						return parent.groupIsValid();
+					},
+					upperName() {
+						parent.setFieldValue(
+							'name',
+							String(parent.getFieldValue('name')).toUpperCase(),
+						);
+					},
+				}),
+			);
+
+			const form: any = factory();
+			flush();
+			expect(typeof form.validateAll).toBe('function');
+			form.upperName();
+			flush();
+			expect(form.name).toBe(''); // 空のため変化なし
+			form.setFieldValue('name', 'john');
+			flush();
+			form.upperName();
+			flush();
+			expect(form.name).toBe('JOHN');
+
+			form.startValid();
+			form.setFieldValue('name', '');
+			flush();
+			expect(form.validateAll()).toBe(false);
+			form.setFieldValue('name', 'OK');
+			flush();
+			expect(form.validateAll()).toBe(true);
+		});
+	});
+
+	test('parent.validate ラッパーの実行（createParentMethods 内の関数カバレッジ）', () => {
+		createRoot(() => {
+			const factory = createForm(
+				{
+					name: { value: 'OK', name: 'Name', validate: [required()] },
+				},
+				(parent: any) => ({
+					run() {
+						return parent.validate();
+					},
+				}),
+			);
+
+			const form: any = factory();
+			form.startValid();
+			flush();
+			expect(form.run()).toBe(true);
+		});
+	});
+
+	test('createForm2: emits を定義時に登録し、anyCondition から参照できる', () => {
+		createRoot(() => {
+			const factory = createForm2(
+				{
+					tax: field({
+						value: '',
+						name: 'Tax',
+						validate: [anyCondition('taxNumCheck', 'NG')],
+					}),
+				},
+				{
+					emits: (parent) => ({
+						taxNumCheck(value: any) {
+							// form の値参照もできる（parent経由）
+							void parent.getFieldValue('tax');
+							return String(value) === 'OK';
+						},
+					}),
+				},
+			);
+
+			const form: any = factory();
+			form.startValid();
+			form.setFieldValue('tax', 'NG');
+			flush();
+			expect(form.groupIsValid(['tax'])).toBe(false);
+			form.setFieldValue('tax', 'OK');
+			flush();
+			expect(form.groupIsValid(['tax'])).toBe(true);
+		});
+	});
+
+	test('createForm2: sameAs で同一フォーム内の別フィールドと比較できる', () => {
+		createRoot(() => {
+			const factory = createForm2(
+				{
+					email: field({ value: '', name: 'Email', validate: [required()] }),
+					email2: field({
+						value: '',
+						name: 'Email Confirm',
+						validate: [required(), sameAs('email')],
+					}),
+				},
+				{
+					methods: (parent: any) => ({
+						validateConfirm() {
+							return parent.groupIsValid(['email', 'email2']);
+						},
+					}),
+				},
+			);
+
+			const form: any = factory();
+			form.startValid();
+			form.email = 'test@example.com';
+			form.email2 = 'other@example.com';
+			flush();
+			expect(form.validateConfirm()).toBe(false);
+			form.email2 = 'test@example.com';
+			flush();
+			expect(form.validateConfirm()).toBe(true);
+		});
+	});
+
+	test('createForm2: options で methods/emits を指定できる', () => {
+		createRoot(() => {
+			const factory = createForm2(
+				{
+					name: field({ value: '', name: 'Name', validate: [required()] }),
+				},
+				{
+					methods: (parent: any) => ({
+						validateAll() {
+							return parent.groupIsValid();
+						},
+					}),
+				},
+			);
+
+			const form: any = factory();
+			form.setFieldValue('name', '');
+			form.startValid();
+			flush();
+			expect(form.validateAll()).toBe(false);
+			form.setFieldValue('name', 'OK');
+			flush();
+			expect(form.validateAll()).toBe(true);
+		});
+	});
+
+	test('createForm2: factory.gen で生成でき、setData のネスト生成で factory を type に渡せる', () => {
+		createRoot(() => {
+			const ChildFormFactory = createForm2(
+				{
+					name: field({ value: '', name: 'Name', validate: [required()] }),
+				},
+				{
+					methods: (parent: any) => ({
+						validateAll() {
+							return parent.groupIsValid();
+						},
+					}),
+				},
+			);
+
+			// gen が生えている
+			const childFromGen: any = ChildFormFactory.gen();
+			flush();
+			expect(typeof childFromGen.validateAll).toBe('function');
+
+			// 親フォーム: ネストフォームの type に Factory をそのまま渡す
+			const ParentFormFactory = createForm2(
+				{
+					child: field({
+						value: null as any,
+						name: 'Child',
+						validate: [],
+						type: ChildFormFactory as any,
+					}),
+				},
+				{
+					methods: () => ({}),
+				},
+			);
+
+			const parent: any = ParentFormFactory();
+			parent.setData({ child: { name: 'OK' } });
+			flush();
+
+			const nested: any = parent.getFieldValue('child');
+			expect(nested).toBeTruthy();
+			flush();
+			expect(typeof nested.validateAll).toBe('function');
+			flush();
+			expect(nested.name).toBe('OK');
+			nested.startValid();
+			flush();
+			expect(nested.validateAll()).toBe(true);
+		});
+	});
+});

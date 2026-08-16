@@ -15,12 +15,18 @@ bun install
 // Vue/Nuxt
 import { VufForm, field } from "@generalworks/vuf/vue";
 
-// Solid/SolidStart
+// Solid 1 / SolidStart
 import { VufForm, field } from "@generalworks/vuf/solid";
+
+// Solid 2
+import { VufForm, field } from "@generalworks/vuf/solid2";
 
 // Core API（拡張）
 import { registerValidator, setMessages, setLocale } from "@generalworks/vuf";
 ```
+
+`/solid` は Solid 1 用、`/solid2` は Solid 2 用です。公開APIは同一なので、
+Solid 2への移行ではimport先のサブパスだけを変更できます。
 
 ## i18n & Messages
 
@@ -123,4 +129,3 @@ import { createEffect, createSignal } from 'solid-js';
   - PR で check ジョブを必須化
   - main は保護ブランチ、マージ後に publish ジョブが実行される構成
   - リリースタグ作成時は GitHub Release を発行し、必要に応じて `dist/` を同梱
-

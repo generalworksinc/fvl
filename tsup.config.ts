@@ -17,6 +17,7 @@ export default defineConfig({
 		'core/index': 'src/core/mod.ts',
 		'vue/index': 'src/vue/mod.ts',
 		'solid/index': 'src/solid/mod.ts',
+		'solid2/index': 'src/solid2/mod.ts',
 		'messages/ja': 'src/core/messages/ja.ts',
 		'messages/en': 'src/core/messages/en.ts',
 	},
