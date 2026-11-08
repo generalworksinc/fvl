@@ -49,6 +49,9 @@ const KEY_FORM = Symbol('$form');
 const KEY_RANDOM = Symbol('$key');
 const KEY_EMITS = Symbol('$emits');
 
+// 開発環境では Solid 2 の型を読むため、Solid 1 で使う単一コールバックの API を明示する。
+const createSolid1Effect = createEffect as unknown as (fn: () => void) => void;
+
 export interface FieldObject<T = any> extends Omit<FieldConfig<T>, 'value'> {
 	value: [() => T, (v: T) => T];
 	validator?: Validator;
@@ -205,7 +208,7 @@ export class VufForm<T extends Record<string, FieldConfig<any>>> {
 			if (!key.includes('$')) {
 				const fieldSignal = this._fields[key].value;
 				// 1) 通常フィールド: 値変化で自身を再検証する。
-				createEffect(() => {
+				createSolid1Effect(() => {
 					const _currentValue = fieldSignal[0]();
 					const validationStarted = this.$startValid[0]();
 					if (isValidateImmediately || validationStarted)
@@ -215,7 +218,7 @@ export class VufForm<T extends Record<string, FieldConfig<any>>> {
 				//    変わるたびに、未監視のサブフォームへ再帰的に validateWatch を張る。
 				//    配列は追加・削除で参照が入れ替わる想定（parent.items = [...]）のため、
 				//    この effect が再実行され後から増えた要素も自動的に監視対象になる。
-				createEffect(() => {
+				createSolid1Effect(() => {
 					const val = fieldSignal[0]();
 					this.attachNestedWatch(val, isValidateImmediately, owner);
 				});
