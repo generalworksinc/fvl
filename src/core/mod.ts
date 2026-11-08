@@ -81,5 +81,4 @@ export function getMessages(
 }
 
 // Re-exports
-export { validatorRegistry as validators };
-export { messagesRegistry as localeMessages };
+export { messagesRegistry as localeMessages, validatorRegistry as validators };

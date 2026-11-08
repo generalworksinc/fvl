@@ -105,9 +105,11 @@ import { createEffect, createSignal } from 'solid-js';
 
 ## 開発者ガイド（Bun / Biome / TypeScript）
 
+- ビルド環境: Bun と Node.js 24 LTS（tsup 9 の実行に使用）
+- TypeScript は 6 系を使用。7 系は Compiler API を提供しないため、tsup 9 の型定義生成が対応するまで更新を保留する。
 - Lint/Format（Biome）
   - 全体: `bunx biome check .`
-  - 自動修正: `bunx biome check . --apply`
+  - 自動修正: `bunx biome check . --write`
 - 型チェック（TypeScript）
   - `bun run typecheck`（`tsc --noEmit`）
 - テスト（`bun run test`を推奨。Solid 1 / Solid 2を適切な条件で分離実行）
@@ -126,8 +128,7 @@ import { createEffect, createSignal } from 'solid-js';
   - テストは TypeScript（`__tests__/**/*.test.ts`）で記述
   - テストの import はソース直参照（例: `../src/vue/mod.ts`）
   - フレームワーク依存（Vue/Solid）は optional peerDependencies
-  - JSRのbare import解決制約により、npm互換配布物は`solid-js ^1.9.14` / `vue ^3.4`をdependencyに含む。ローカル/CIのSolid 2テストは`overrides`でSolid 2 RC / Vue 3.5へ固定する
-  - Solid 2 consumerではvuf配下にSolid 1がネストするため、Viteの`resolve.dedupe`へ`solid-js`と`@solidjs/web`を指定する
+  - ローカル/CIは`solid-js 2.0.0-rc.21`と`solid-js-v1`（Solid 1.9.18 の npm alias）で両世代をテストする。Vue は 3.5.45 を使用する。
 
 ## CI / CD（概要）
 
