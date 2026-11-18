@@ -128,7 +128,7 @@ import { createEffect, createSignal } from 'solid-js';
   - テストは TypeScript（`__tests__/**/*.test.ts`）で記述
   - テストの import はソース直参照（例: `../src/vue/mod.ts`）
   - フレームワーク依存（Vue/Solid）は optional peerDependencies
-  - ローカル/CIは`solid-js 2.0.0-rc.21`と`solid-js-v1`（Solid 1.9.18 の npm alias）で両世代をテストする。Vue は 3.5.45 を使用する。
+  - ローカル/CIは`solid-js 2.0.0`と`solid-js-v1`（Solid 1.9.18 の npm alias）で両世代をテストする。Vue は 3.5.45 を使用する。
 
 ## CI / CD（概要）
 
