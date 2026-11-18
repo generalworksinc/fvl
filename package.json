@@ -43,7 +43,7 @@
 	"devDependencies": {
 		"@biomejs/biome": "^2.6.6",
 		"bun-types": "^1.4.4",
-		"solid-js": "2.0.0-rc.21",
+		"solid-js": "2.0.0",
 		"solid-js-v1": "npm:solid-js@^1.9.18",
 		"tsup": "^9.0.0",
 		"typescript": "^6.0.3",
