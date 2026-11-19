@@ -49,26 +49,3 @@ jobs:
 
       - name: JSR dry-run
         run: bun run jsr:check
-
-  publish:
-    name: Publish to JSR (main branch)
-    needs: check
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: '1.4.4'
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile || bun install
-
-      - name: Publish (JSR)
-        run: bunx --yes jsr publish
